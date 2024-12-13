@@ -1,0 +1,7 @@
+[project]
+name = "safe"
+version = "0.0.0"
+description = "Allow constructive type safety through a functional approach."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
