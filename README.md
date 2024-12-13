@@ -1,6 +1,6 @@
 # About
 
-`safe` is the Python implementation of an strategy that allows constructive type safety through a specific "systematics", as described [below](#systematics). There are no dependences.
+`safe` is the Python implementation of a strategy that allows constructive type safety through a specific "systematics", as described [below](#systematics). There are no dependencies.
 
 > The same strategy can be easily implemented in any dynamically typed functional programming language which admits class-level entities, as Javascript and Ruby.
 
