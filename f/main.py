@@ -1,7 +1,7 @@
 import inspect
 import textwrap
 
-class _:
+class f:
     TYPES = {}
     FUNCS = {}
 
@@ -25,8 +25,6 @@ class _:
             'domain': [],
             'std_repr': cls.repr(std_func)
         }
-        exec_func = cls.mk(name)
-        globals()[name] = exec_func
         cls.FUNCS[name] = funcstructure
     f = func
 
@@ -47,18 +45,27 @@ class _:
         cls.FUNCS[name]['domain'].append((arg_types, kwarg_types))
 
         cls.FUNCS[name]['exec'] = cls.mk(name)
-        globals()[name] = cls.mk(name)
     ext = extend
     e = ext
 
     @classmethod
     def mk(cls, name):
         def exec_func(*args, **kwargs):
-            funcspec = cls.spec(name)
-            if funcspec['exec']:
-                return funcspec['exec'](*args, **kwargs)
-            return funcspec['std'](*args, **kwargs)
+            funcspec = cls.FUNCS[name]
+            for (arg_types, kwarg_types_tuple), funcinfo in funcspec['body'].items():
+                kwarg_types = dict(kwarg_types_tuple)  # Convert back to dict
+                if all(isinstance(arg, typ) for arg, typ in zip(args, arg_types)) and \
+                        all(isinstance(kwargs.get(key), typ) for key, typ in kwarg_types.items()):
+                    return funcinfo['func'](*args, **kwargs)
+            return funcspec['std'](*args, **kwargs)  # Use the standard func when no match
         return exec_func
+
+    @classmethod
+    def set(cls, name):
+        if name not in cls.FUNCS:
+            raise ValueError(f"Function '{name}' is not registered.")
+        return cls.FUNCS[name]['exec']
+    s = set
 
     @classmethod
     def parse(cls, arg_and_kwarg_types):
@@ -91,7 +98,7 @@ class _:
         if f in cls.FUNCS:
             return cls.FUNCS[f]
         raise ValueError(f"Function specification for '{f}' not found.")
-    s = spec
+    S = spec
 
     @classmethod
     def info(cls, f, what='spec'):
