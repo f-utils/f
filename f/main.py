@@ -4,17 +4,44 @@ import textwrap
 class f:
     TYPES = {}
     FUNCS = {}
+    
+    _default_types = None
+    _default_funcs = None
 
     @classmethod
-    def type(cls, typename, description):
-        if typename in cls.TYPES:
+    def init(cls, custom_types=None, custom_funcs=None):
+        cls._default_types = custom_types
+        cls._default_funcs = custom_funcs
+
+    @classmethod
+    def set(cls, *args, **kwargs):
+        if len(args) == 1 and isinstance(args[0], str):
+            function_name = args[0]
+            funcs_dict = cls._default_funcs or cls.FUNCS
+            if function_name not in funcs_dict:
+                raise ValueError(f"Function '{function_name}' is not registered.")
+            return funcs_dict[function_name]['exec']
+        
+        TYPES = kwargs.get('TYPES', None)
+        FUNCS = kwargs.get('FUNCS', None)
+        
+        if TYPES is not None:
+            cls._default_types = TYPES
+        if FUNCS is not None:
+            cls._default_funcs = FUNCS
+
+    @classmethod
+    def type(cls, typename, description, at=None):
+        types_dict = at if at is not None else (cls._default_types or cls.TYPES)
+        if typename in types_dict:
             raise ValueError(f"Type '{typename}' is already registered.")
-        cls.TYPES[typename] = description
+        types_dict[typename] = description
     t = type
 
     @classmethod
-    def func(cls, name, description, std_func):
-        if name in cls.FUNCS:
+    def func(cls, name, description, std_func, at=None):
+        funcs_dict = at if at is not None else (cls._default_funcs or cls.FUNCS)
+        if name in funcs_dict:
             raise ValueError(f"Function '{name}' is already initialized.")
         funcstructure = {
             'name': name,
@@ -25,33 +52,80 @@ class f:
             'domain': [],
             'std_repr': cls.repr(std_func)
         }
-        cls.FUNCS[name] = funcstructure
+        funcs_dict[name] = funcstructure
     f = func
 
     @classmethod
-    def extend(cls, name, arg_and_kwarg_types, case_func):
-        if not callable(case_func):
-            raise ValueError("case_func must be callable.")
+    def extend(cls, name, arg_types, func, at=None):
+        funcs_dict = at if at is not None else (cls._default_funcs or cls.FUNCS)
+        if name not in funcs_dict:
+            raise ValueError(f"Function '{name}' is not registered.")
+        spec = funcs_dict[name]
 
-        arg_types, kwarg_types = cls.parse(arg_and_kwarg_types)
+        kwarg_types = {}
+        if isinstance(arg_types, tuple):
+            if len(arg_types) == 2 and isinstance(arg_types[1], dict):
+                pos_types, kwarg_types = arg_types
+            else:
+                pos_types = arg_types
+                kwarg_types = {}
+        else:
+            pos_types = (arg_types,) if not isinstance(arg_types, tuple) else arg_types
+            kwarg_types = {}
 
-        if (tuple(arg_types), frozenset(kwarg_types.items())) in cls.FUNCS[name]['body']:
-            raise ValueError(f"The type combination '{arg_types}' with '{kwarg_types}' is already in domain for function '{name}'.")
+        kwarg_items = tuple(kwarg_types.items())
+        if (pos_types, kwarg_items) not in spec['domain']:
+            spec['domain'].append((pos_types, kwarg_items))
 
-        cls.FUNCS[name]['body'][(tuple(arg_types), frozenset(kwarg_types.items()))] = {
-            'func': case_func,
-            'repr': cls.repr(case_func)
+        spec['body'][(pos_types, kwarg_items)] = {
+            'func': func,
+            'repr': cls.repr(func)
         }
-        cls.FUNCS[name]['domain'].append((arg_types, kwarg_types))
+        spec['exec'] = cls.mk(name, at=funcs_dict)
+    e = extend
+    
+    @classmethod
+    def update(cls, f, attribute, at=None):
+        funcs_dict = at if at is not None else (cls._default_funcs or cls.FUNCS)
+        spec = funcs_dict.get(f)
 
-        cls.FUNCS[name]['exec'] = cls.mk(name)
-    ext = extend
-    e = ext
+        if attribute == 'desc':
+            def _update_desc_(new_description):
+                spec['description'] = new_description
+            return _update_desc_
+
+        if attribute == 'std':
+            def _update_std_(new_std_func):
+                spec['std'] = new_std_func
+                spec['std_repr'] = cls.repr(new_std_func)
+                cls.set(spec['name'])
+                funcs_dict[spec['name']] = spec
+            return _update_std_
+
+        if attribute == 'body':
+            def _update_body_(typeargument, new_argument_function):
+                if typeargument not in cls.TYPES:
+                    raise ValueError(f"Type '{typeargument}' not registered.")
+                for (arg_types, kwarg_types), func in spec['body'].items():
+                    if typeargument in arg_types:
+                        spec['body'][(arg_types, kwarg_types)] = {
+                            'func': new_argument_function,
+                            'repr': cls.repr(new_argument_function)
+                        }
+                        cls.set(spec['name'])
+                        funcs_dict[spec['name']] = spec
+                        return
+                raise ValueError(f"Type '{typeargument}' not found in domain.")
+            return _update_body_
+
+        raise ValueError(f"Unknown update attribute '{attribute}'.")
+    u = update
 
     @classmethod
-    def mk(cls, name):
+    def mk(cls, name, at=None):
+        funcs_dict = at if at is not None else (cls._default_funcs or cls.FUNCS)
         def exec_func(*args, **kwargs):
-            funcspec = cls.FUNCS[name]
+            funcspec = funcs_dict[name]
             for (arg_types, kwarg_types_tuple), funcinfo in funcspec['body'].items():
                 kwarg_types = dict(kwarg_types_tuple)  # Convert back to dict
                 if all(isinstance(arg, typ) for arg, typ in zip(args, arg_types)) and \
@@ -59,27 +133,6 @@ class f:
                     return funcinfo['func'](*args, **kwargs)
             return funcspec['std'](*args, **kwargs)  # Use the standard func when no match
         return exec_func
-
-    @classmethod
-    def set(cls, name):
-        if name not in cls.FUNCS:
-            raise ValueError(f"Function '{name}' is not registered.")
-        return cls.FUNCS[name]['exec']
-    s = set
-
-    @classmethod
-    def parse(cls, arg_and_kwarg_types):
-        if isinstance(arg_and_kwarg_types, dict):
-            return (), arg_and_kwarg_types
-        elif isinstance(arg_and_kwarg_types, tuple):
-            split_index = next((i for i, t in enumerate(arg_and_kwarg_types) if isinstance(t, dict)), len(arg_and_kwarg_types))
-            arg_types = arg_and_kwarg_types[:split_index]
-            kwarg_types = arg_and_kwarg_types[split_index] if split_index < len(arg_and_kwarg_types) else {}
-            return arg_types, kwarg_types
-        elif isinstance(arg_and_kwarg_types, type):
-            return (arg_and_kwarg_types,), {}
-        else:
-            raise ValueError("Invalid format for argument types. Must be a type, dict, or tuple.")
 
     @classmethod
     def repr(cls, func):
@@ -103,7 +156,12 @@ class f:
     @classmethod
     def info(cls, f, what='spec'):
         def _typestr_(typetuple, kwarg_dict):
-            arg_str = ', '.join(t.__name__ for t in typetuple)
+            if not typetuple:
+                typetuple = ()
+            if not kwarg_dict:
+                kwarg_dict = {}
+
+            arg_str = ', '.join(t.__name__ if hasattr(t, '__name__') else str(t) for t in typetuple)
             kwarg_str = ', '.join(f"{key}: {t.__name__}" for key, t in kwarg_dict.items())
             return ', '.join(filter(None, [arg_str, kwarg_str]))
 
@@ -117,6 +175,7 @@ class f:
             print(f"    {spec['std_repr']}")
             print("  DOMAIN:")
             for i, (arg_types, kwarg_types) in enumerate(spec['domain'], 1):
+                kwarg_types = dict(kwarg_types)  # Convert back to dict for the print
                 print(f"    {i}. {_typestr_(arg_types, kwarg_types)}")
             print("  BODY:")
             for i, ((arg_combo, kwarg_combo), funcinfo) in enumerate(spec['body'].items(), 1):
@@ -124,6 +183,7 @@ class f:
         elif what == 'domain':
             print(f"Domain of function '{spec['name']}':")
             for i, (arg_types, kwarg_types) in enumerate(spec['domain'], 1):
+                kwarg_types = dict(kwarg_types)  # Convert back to dict for the print
                 print(f"    {i}. {_typestr_(arg_types, kwarg_types)}")
         elif what == 'std':
             print(f"Standard return for function '{spec['name']}':")
@@ -138,40 +198,4 @@ class f:
         else:
             raise ValueError(f"Unknown attribute '{what}' to print.")
     i = info
-
-    @classmethod
-    def update(cls, f, attribute):
-        spec = cls.spec(f)
-
-        if attribute == 'desc':
-            def _update_desc_(new_description):
-                spec['description'] = new_description
-            return _update_desc_
-
-        if attribute == 'std':
-            def _update_std_(new_std_func):
-                spec['std'] = new_std_func
-                spec['std_repr'] = cls.repr(new_std_func)
-                globals()[spec['name']] = cls.mk(spec['name'])
-                cls.FUNCS[spec['name']] = spec
-            return _update_std_
-
-        if attribute == 'body':
-            def _update_body_(typeargument, new_argument_function):
-                if typeargument not in cls.TYPES:
-                    raise ValueError(f"Type '{typeargument}' not registered.")
-                for (arg_types, kwarg_types), func in spec['body'].items():
-                    if typeargument in arg_types:
-                        spec['body'][(arg_types, kwarg_types)] = {
-                            'func': new_argument_function,
-                            'repr': cls.repr(new_argument_function)
-                        }
-                        globals()[spec['name']] = cls.mk(spec['name'])
-                        cls.FUNCS[spec['name']] = spec
-                        return
-                raise ValueError(f"Type '{typeargument}' not found in domain.")
-            return _update_body_
-
-        raise ValueError(f"Unknown update attribute '{attribute}'.")
-    u = update
 
