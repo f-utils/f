@@ -18,7 +18,6 @@ extend      function      extends the function spectrum
 update      function      updates the function spectrum
 set         function      attaches the spetrum to a function
 spec        function      returns the spectrum of a function
-info        function      prints function spectrum in a human readable way
 ```
 
 The class-level functions come with aliases:
@@ -33,7 +32,6 @@ extend      e
 update      u
 set         s
 spec        S
-info        I
 ```
 
 > **Remark.** Following the `f-utils` philosophy, the class `f` should be imported directly, without a namespace:
@@ -46,7 +44,7 @@ info        I
 
 # Basic Flow
 
-With class `f` imported, the `f-utils` systematics can be applied according to the following flow: 
+With the class `f` imported, the `f-utils` systematics can then be applied according to the following flow: 
 
 ```python
 # import the class `f`
@@ -73,11 +71,11 @@ my_func = f.set('my_func')
 
 # Analogy
 
-As you can see, the flow is essentially that of a dynamic object, as a list, a set or a dictionary:
+As you can see, the flow is essentially that of a dynamic object, as a `list`, a `set` or a `dict`:
 
-1. `initialize` the object
-2. `extend` the object by adding elements to it
-3. `update` the object by change its elements
+1. one start by `initializing` the object
+2. it can then be `extended` by adding elements to it
+3. and eventually `updated` by modifying its elements
 
 Thus, the core `f-utils` systematics is:
 
@@ -92,20 +90,22 @@ The "dynamic object" associated to a function is its `spectrum`: a tuple consist
 
 # Detailed Description
 
-Let us now describe with more details what is happening in the previous flow and how to deal with function spectra. 
+Let us now describe in more details what is happening in the previous flow and how to deal with the function spectra. 
 
-As discussed in the `f-utils` [systematics](https://github.com/f-utils/general/docs/systematics.md), the `f-utils` libs define `f-systems`, whose `state` is defined into two levels:
-1. `globally`: provided by the current collection of all `accessible types` and all `accessible spectra` on that
-2. `locally`: provided by the current content of a given spectrum.
+Remember that, as discussed in the `f-utils` [systematics](https://github.com/f-utils/general/docs/systematics.md), the `f-utils` libs define `f-systems`, whose `state` is fixed into two levels:
+1. `globally`: being given by the current collection of all `accessible types` and all `accessible spectra` on that
+2. `locally`: corresponding to the current values of a given spectrum.
 
 The `global state` of a `f-system` is therefore given by the following dictionaries:
 
 - `TYPES`: with the current `accessible types`
 - `FUNCS`: with the current `accessible spectra`
 
-We define a `f-system` by importing the class `f`.  Every `f-system`  is created with a `bare global state`: its minimal global state, in which the dictionaries `TYPES` and `FUNCS` assume the values below.
+On the other hand, the `local state` of a `f-system` is determined by the `name`, `desc`, `std`, `domain` and `body` of the accessible spectra.
 
-- `TYPES`: comes  with the "bare accessible types", which are the basic builtin Python types:
+Recall that a `f-system` is defined by importing the class `f`. Every `f-system` is created with a `bare global state`: its minimal global state, in which the dictionaries `TYPES` and `FUNCS` assume the values below.
+
+- `TYPES`: comes with the "bare accessible types", which are the basic builtin Python types:
 ```python
 TYPES = {
     None:         "empty type",
@@ -149,11 +149,57 @@ f.func(
 )
 ```
 
-After doing that, if one prints `FUNCS` we will see that the spectrum `some_spectrum_name` is there. One can then extend it
+After doing that, if one prints `FUNCS` we will see it is no longer empty: the spectrum `some_spectrum_name` is there:
 
-# Example
+> **Remark.** The global state is a class-level entity, so that it is shared across any `f-system` in the same project. This means that if you have another module which also imports `f`, your spectrum `some_spectrum_name` you also be accessible from there.
 
-# Custom `TYPES` And `FUNCS`
+One can now *extend* our spectrum by adding a `return function` through the method `f.extend`:
 
-# The Info Method
+```python
+f.extend(
+    'some_spectrum_name',     # 1. the name of the spectrum to be extended
+    SomeType,                 # 2. the type to extend the spectrum
+    lambda x: something       # 3. the returning function of the extending type
+)
+```
+
+> **Remark.** Again, you do not need to pass a lambda function. You can pass any other previously defined function, as well.
+
+If one prints `FUNCS` again, one could see that the `domain` and the `body` of the spectrum `some_spectrum_name` are no longer empty: the `domain` now contains the type `SomeType`, while the `body` contains the entry `{ SomeType: 'lambda x: something' }`.
+
+Actually, if `some_type` is not an accessible type (i.e, if it is not an element of `TYPES`), then one would get an error. Indeed, 
+
+> one can extend a spectrum with given type **only if** such type is an accessible type.
+
+This is how we control the accessibility of the `f-system`. But
+
+> *What if one wants to extend a spectrum with a type which is not in `TYPES`?*
+
+In this case, one needs to promote that type to an accessible type through the method `f.type`, so that it can then be used to extend a spectrum:
+
+```python
+class SomeType:
+    # some nice implementation
+
+f.type(
+    SomeType,               # 1. the type to be made accessible
+    'some description'      # 2. a description for that
+)
+
+f.extend(
+    'some_spectrum_name',     # 1. the name of the spectrum to be extended
+    SomeType,                 # 2. the type to extend the spectrum
+    lambda x: something       # 3. the returning function of the extending type
+)
+```
+
+Printing `TYPES` one can see that it now contains not only the `base accessible types`, but also the new `SomeType`.
+
+> **Remark.** Since `TYPES` is also part of the `global state` of a `f-system`, it is also shared across any other `f-system` in the same project. This means that, if one has other module importing `f`, then `SomeType` will also be an accessible type there.
+
+Now, suppose one initialized a spectrum and wants to change its info.
+
+- ...
+
+# Custom Bare State
 
