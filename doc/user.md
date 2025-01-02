@@ -4,7 +4,7 @@ In this documentation we describe how to use the Python library [f-utils/f](http
 
 # The Class `f`
 
-The lib `f` defines a namesake class with class-level information:
+The lib `f` defines a namesake class with class-level information (dictionaries and functions):
 ```
 entity      type          meaning
 ---------------------------------------------------------------
@@ -46,7 +46,7 @@ info        I
 
 # Basic Flow
 
-With `f` being imported, the systematics can be applied according to the following flow: 
+With class `f` imported, the `f-utils` systematics can be applied according to the following flow: 
 
 ```python
 # import the class `f`
@@ -71,20 +71,41 @@ To use the spectrum one should then attach it to function:
 my_func = f.set('my_func')
 ```
 
+# Analogy
+
+As you can see, the flow is essentially that of a dynamic object, as a list, a set or a dictionary:
+
+1. `initialize` the object
+2. `extend` the object by adding elements to it
+3. `update` the object by change its elements
+
+Thus, the core `f-utils` systematics is:
+
+> to think of functions as dynamic objects.
+
+The "dynamic object" associated to a function is its `spectrum`: a tuple consisting of the following data:
+1. `name`: a string defining the *spetrum name*
+2. `desc`: a string with the *spectrum description*
+3. `std`: a function, being the *spectrum standard return*
+4. `domain`: a list whose elements are "acceptable types", defining the *spectrum domain*
+5. `body`: a dictionary that maps to each acceptable type a *spectrum returning function*.
+
 # Detailed Description
 
-Let us now describe with more details what is happening in the previous flow. As discussed in the `f-utils` [systematics](https://github.com/f-utils/general/docs/systematics.md), the `f-utils` libs define `f-systems`, whose `state` is defined into two levels:
-1. `globally`: provided by the current collection of all accessible types and all accessible spectra on that
+Let us now describe with more details what is happening in the previous flow and how to deal with function spectra. 
+
+As discussed in the `f-utils` [systematics](https://github.com/f-utils/general/docs/systematics.md), the `f-utils` libs define `f-systems`, whose `state` is defined into two levels:
+1. `globally`: provided by the current collection of all `accessible types` and all `accessible spectra` on that
 2. `locally`: provided by the current content of a given spectrum.
 
-The `global state` of a `f-system` is, therefore, given by the following dictionaries:
+The `global state` of a `f-system` is therefore given by the following dictionaries:
 
-- `TYPES`: with the current accessible types
-- `FUNCS`: with the current accessible spectra
+- `TYPES`: with the current `accessible types`
+- `FUNCS`: with the current `accessible spectra`
 
-When one imports the class `f` it comes endowed with the `bare global state`, which is the minimal state of the `f-system`:
+We define a `f-system` by importing the class `f`.  Every `f-system`  is created with a `bare global state`: its minimal global state, in which the dictionaries `TYPES` and `FUNCS` assume the values below.
 
-- `TYPES`: contains the following `bare accessible types`, which are the basic builtin Python types:
+- `TYPES`: comes  with the "bare accessible types", which are the basic builtin Python types:
 ```python
 TYPES = {
     None:         "empty type",
@@ -103,9 +124,9 @@ TYPES = {
     memoryview:   "memory access"
 }
 ```
-- `FUNCS`: the empty dictionary, meaning that there is no `bare accessible spectra` in a `f-system`.
+- `FUNCS`: comes empty, meaning that there is no "bare accessible spectra" in a `f-system`.
 
-After importing the class `f`, one can modify the `global state` of the `f-system` by initializing a function spectrum in it:
+One time defined, one can modify the `global state` of a `f-system` by initializing a function spectrum in it:
 
 ```python
 f.func(
@@ -115,7 +136,7 @@ f.func(
 )
 ```
 
-Above, the `lambda` function defines the `standard return` of the spectrum. Of course, it can be any previously defined function, not necessarily a `lambda` function. For instance, one could defined:
+Above, the `lambda` function defines the `standard return` of the spectrum. Of course, it could be any previously defined function, not necessarily a `lambda` function. For instance, one could defined:
 
 ```python
 def whatever(*args, **kwargs):
@@ -127,6 +148,8 @@ f.func(
     whatever
 )
 ```
+
+After doing that, if one prints `FUNCS` we will see that the spectrum `some_spectrum_name` is there. One can then extend it
 
 # Example
 
