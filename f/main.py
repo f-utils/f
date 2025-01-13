@@ -1,5 +1,4 @@
 import inspect
-import textwrap
 
 class f:
     TYPES = {}
@@ -149,7 +148,7 @@ class f:
             return _update_comments_
 
         raise ValueError(f"Unknown update attribute '{attribute}'.")
-    u = update 
+    u = update
 
     @classmethod
     def mk(cls, name, at=None):
@@ -157,11 +156,11 @@ class f:
         def exec_func(*args, **kwargs):
             funcspec = funcs_dict[name]
             for (arg_types, kwarg_types_tuple), funcinfo in funcspec['body'].items():
-                kwarg_types = dict(kwarg_types_tuple)  # Convert back to dict
+                kwarg_types = dict(kwarg_types_tuple)
                 if all(isinstance(arg, typ) for arg, typ in zip(args, arg_types)) and \
                         all(isinstance(kwargs.get(key), typ) for key, typ in kwarg_types.items()):
                     return funcinfo['func'](*args, **kwargs)
-            return funcspec['std'](*args, **kwargs)  # Use the standard func when no match
+            return funcspec['std'](*args, **kwargs)
         return exec_func
 
     @classmethod
@@ -177,9 +176,60 @@ class f:
         return source
 
     @classmethod
-    def spec(cls, f):
-        if f in cls.FUNCS:
-            return cls.FUNCS[f]
+    def spec(cls, f, at=None):
+        funcs_dict = at if at is not None else cls.FUNCS
+        if f in funcs_dict:
+            return funcs_dict[f]
         raise ValueError(f"Function specification for '{f}' not found.")
-    S = spec
+    s = spec
 
+    @classmethod
+    def get(cls, f, entry, at=None):
+        entry_aliases = {
+            'description': ['d', 'desc', 'description'],
+            'domain': ['D', 'domain'],
+            'body': ['b', 'body'],
+            'std': ['s', 'std', 'standard'],
+            'tags': ['t', 'tag', 'tags'],
+            'comments': ['c', 'comment', 'comments'],
+            'spec': ['S', 'spec', 'spectrum']
+        }
+
+        entry = next((key for key, aliases in entry_aliases.items() if entry in aliases), entry)
+
+        spec = cls.spec(f, at=at)
+
+        if entry == 'description':
+            return lambda: spec['description']
+
+        if entry == 'domain':
+            return lambda: spec['domain']
+
+        if entry == 'body':
+            def _get_body_(type_name=None):
+                if type_name is None:
+                    return spec['body']
+                for (arg_types, _), func in spec['body'].items():
+                    if type_name in arg_types:
+                        return func['func']
+                raise ValueError(f"Type '{type_name}' not found in body.")
+            return _get_body_
+
+        if entry == 'std':
+            return lambda: spec['std']
+
+        if entry == 'tags':
+            return spec['tags']
+
+        if entry == 'comments':
+            def _get_comments_(comment_id=None):
+                if comment_id is None:
+                    return spec['comments']
+                return spec['comments'].get(comment_id, f"Comment ID '{comment_id}' not found.")
+            return _get_comments_
+
+        if entry == 'spec':
+            return lambda: spec
+
+        raise ValueError(f"Unknown entry '{entry}'.")
+    g = get
