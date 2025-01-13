@@ -17,4 +17,3 @@ f.t(dict,       'key and value sets')
 f.t(bytes,      'bytes representation')
 f.t(bytearray,  'bytes sequences')
 f.t(memoryview, 'memory access')
-
