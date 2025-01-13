@@ -39,7 +39,7 @@ class f:
     t = type
 
     @classmethod
-    def func(cls, name, description, std_func, at=None):
+    def func(cls, name, description, std_func, tags=None, comments=None, at=None):
         funcs_dict = at if at is not None else (cls._default_funcs or cls.FUNCS)
         if name in funcs_dict:
             raise ValueError(f"Function '{name}' is already initialized.")
@@ -50,6 +50,8 @@ class f:
             'body': {},
             'exec': None,
             'domain': [],
+            'tags': tags or [],
+            'comments': comments or {},
             'std_repr': cls.repr(std_func)
         }
         funcs_dict[name] = funcstructure
@@ -117,6 +119,16 @@ class f:
                         return
                 raise ValueError(f"Type '{typeargument}' not found in domain.")
             return _update_body_
+
+        if attribute == 'tags':
+            def _update_tags_(new_tags):
+                spec['tags'] = new_tags
+            return _update_tags_
+
+        if attribute == 'comments':
+            def _update_comments_(comment_id, comment_text):
+                spec['comments'][comment_id] = comment_text
+            return _update_comments_
 
         raise ValueError(f"Unknown update attribute '{attribute}'.")
     u = update
