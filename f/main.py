@@ -140,26 +140,72 @@ class f:
                 raise ValueError(f"Type '{typeargument}' not found in domain.")
             return _update_body_
 
+        raise ValueError(f"Unknown or unsupported update attribute '{attribute}'.")
+
+    @classmethod
+    def add(cls, entity, attribute, at=None):
+        attribute_aliases = {
+            'tags': ['t', 'tag', 'tags'],
+            'comments': ['c', 'comment', 'comments']
+        }
+
+        attribute = next((key for key, aliases in attribute_aliases.items() if attribute in aliases), attribute)
+
+        types_dict = at if at is not None else (cls._default_types or cls.TYPES)
+        funcs_dict = at if at is not None else (cls._default_funcs or cls.FUNCS)
+
+        if entity in funcs_dict:
+            spec = funcs_dict[entity]
+        elif entity in types_dict:
+            spec = types_dict[entity]
+        else:
+            raise ValueError(f"Entity '{entity}' not found in types or funcs.")
+
         if attribute == 'tags':
-            def _update_tags_(*args):
-                if len(args) == 1:
-                    tag = args[0]
-                    if tag not in spec['tags']:
-                        spec['tags'].append(tag)
-                elif len(args) == 2:
-                    old_tag, new_tag = args
-                    if old_tag in spec['tags']:
-                        spec['tags'].remove(old_tag)
-                        spec['tags'].append(new_tag)
-            return _update_tags_
+            def _add_tags_(tag):
+                if tag not in spec['tags']:
+                    spec['tags'].append(tag)
+            return _add_tags_
 
         if attribute == 'comments':
-            def _update_comments_(comment_id, comment_text):
+            def _add_comments_(comment_id, comment_text):
                 spec['comments'][comment_id] = comment_text
-            return _update_comments_
+            return _add_comments_
 
-        raise ValueError(f"Unknown update attribute '{attribute}'.")
-    u = update
+        raise ValueError(f"Unknown or unsupported add attribute '{attribute}'.")
+
+    @classmethod
+    def delete(cls, entity, attribute, at=None):
+        attribute_aliases = {
+            'tags': ['t', 'tag', 'tags'],
+            'comments': ['c', 'comment', 'comments']
+        }
+
+        attribute = next((key for key, aliases in attribute_aliases.items() if attribute in aliases), attribute)
+
+        types_dict = at if at is not None else (cls._default_types or cls.TYPES)
+        funcs_dict = at if at is not None else (cls._default_funcs or cls.FUNCS)
+
+        if entity in funcs_dict:
+            spec = funcs_dict[entity]
+        elif entity in types_dict:
+            spec = types_dict[entity]
+        else:
+            raise ValueError(f"Entity '{entity}' not found in types or funcs.")
+
+        if attribute == 'tags':
+            def _delete_tags_(tag):
+                if tag in spec['tags']:
+                    spec['tags'].remove(tag)
+            return _delete_tags_
+
+        if attribute == 'comments':
+            def _delete_comments_(comment_id):
+                if comment_id in spec['comments']:
+                    del spec['comments'][comment_id]
+            return _delete_comments_
+
+        raise ValueError(f"Unknown or unsupported delete attribute '{attribute}'.")
 
     @classmethod
     def mk(cls, name, at=None):
@@ -238,7 +284,7 @@ class f:
             return lambda: spec['std']
 
         if entry == 'tags':
-            return spec['tags']
+            return lambda: spec['tags']
 
         if entry == 'comments':
             def _get_comments_(comment_id=None):
