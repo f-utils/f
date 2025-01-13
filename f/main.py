@@ -30,11 +30,15 @@ class f:
             cls._default_funcs = FUNCS
 
     @classmethod
-    def type(cls, typename, description, at=None):
+    def type(cls, typename, description, tags=None, comments=None, at=None):
         types_dict = at if at is not None else (cls._default_types or cls.TYPES)
         if typename in types_dict:
             raise ValueError(f"Type '{typename}' is already registered.")
-        types_dict[typename] = description
+        types_dict[typename] = {
+            'description': description,
+            'tags': tags or [],
+            'comments': comments or {}
+        }
     t = type
 
     @classmethod
@@ -86,7 +90,7 @@ class f:
     e = extend
 
     @classmethod
-    def update(cls, f, attribute, at=None):
+    def update(cls, entity, attribute, at=None):
         attribute_aliases = {
             'description': ['d', 'desc', 'description'],
             'std': ['s', 'std', 'standard'],
@@ -97,15 +101,22 @@ class f:
 
         attribute = next((key for key, aliases in attribute_aliases.items() if attribute in aliases), attribute)
 
+        types_dict = at if at is not None else (cls._default_types or cls.TYPES)
         funcs_dict = at if at is not None else (cls._default_funcs or cls.FUNCS)
-        spec = funcs_dict.get(f)
+
+        if entity in funcs_dict:
+            spec = funcs_dict[entity]
+        elif entity in types_dict:
+            spec = types_dict[entity]
+        else:
+            raise ValueError(f"Entity '{entity}' not found in types or funcs.")
 
         if attribute == 'description':
             def _update_desc_(new_description):
                 spec['description'] = new_description
             return _update_desc_
 
-        if attribute == 'std':
+        if attribute == 'std' and spec in funcs_dict.values():
             def _update_std_(new_std_func):
                 spec['std'] = new_std_func
                 spec['std_repr'] = cls.repr(new_std_func)
@@ -113,9 +124,9 @@ class f:
                 funcs_dict[spec['name']] = spec
             return _update_std_
 
-        if attribute == 'body':
+        if attribute == 'body' and spec in funcs_dict.values():
             def _update_body_(typeargument, new_argument_function):
-                if typeargument not in cls.TYPES:
+                if typeargument not in types_dict:
                     raise ValueError(f"Type '{typeargument}' not registered.")
                 for (arg_types, kwarg_types), func in spec['body'].items():
                     if typeargument in arg_types:
@@ -184,7 +195,7 @@ class f:
     s = spec
 
     @classmethod
-    def get(cls, f, entry, at=None):
+    def get(cls, entity, entry, at=None):
         entry_aliases = {
             'description': ['d', 'desc', 'description'],
             'domain': ['D', 'domain'],
@@ -197,15 +208,23 @@ class f:
 
         entry = next((key for key, aliases in entry_aliases.items() if entry in aliases), entry)
 
-        spec = cls.spec(f, at=at)
+        types_dict = at if at is not None else (cls._default_types or cls.TYPES)
+        funcs_dict = at if at is not None else (cls._default_funcs or cls.FUNCS)
+
+        if entity in funcs_dict:
+            spec = funcs_dict[entity]
+        elif entity in types_dict:
+            spec = types_dict[entity]
+        else:
+            raise ValueError(f"Entity '{entity}' not found in types or funcs.")
 
         if entry == 'description':
             return lambda: spec['description']
 
-        if entry == 'domain':
+        if entry == 'domain' and 'domain' in spec:
             return lambda: spec['domain']
 
-        if entry == 'body':
+        if entry == 'body' and 'body' in spec:
             def _get_body_(type_name=None):
                 if type_name is None:
                     return spec['body']
@@ -215,7 +234,7 @@ class f:
                 raise ValueError(f"Type '{type_name}' not found in body.")
             return _get_body_
 
-        if entry == 'std':
+        if entry == 'std' and 'std' in spec:
             return lambda: spec['std']
 
         if entry == 'tags':
@@ -233,3 +252,4 @@ class f:
 
         raise ValueError(f"Unknown entry '{entry}'.")
     g = get
+
