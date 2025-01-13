@@ -88,10 +88,20 @@ class f:
 
     @classmethod
     def update(cls, f, attribute, at=None):
+        attribute_aliases = {
+            'description': ['d', 'desc', 'description'],
+            'std': ['s', 'std', 'standard'],
+            'body': ['b', 'body'],
+            'tags': ['t', 'tag', 'tags'],
+            'comments': ['c', 'comment', 'comments']
+        }
+
+        attribute = next((key for key, aliases in attribute_aliases.items() if attribute in aliases), attribute)
+
         funcs_dict = at if at is not None else (cls._default_funcs or cls.FUNCS)
         spec = funcs_dict.get(f)
 
-        if attribute == 'desc':
+        if attribute == 'description':
             def _update_desc_(new_description):
                 spec['description'] = new_description
             return _update_desc_
@@ -121,8 +131,16 @@ class f:
             return _update_body_
 
         if attribute == 'tags':
-            def _update_tags_(new_tags):
-                spec['tags'] = new_tags
+            def _update_tags_(*args):
+                if len(args) == 1:
+                    tag = args[0]
+                    if tag not in spec['tags']:
+                        spec['tags'].append(tag)
+                elif len(args) == 2:
+                    old_tag, new_tag = args
+                    if old_tag in spec['tags']:
+                        spec['tags'].remove(old_tag)
+                        spec['tags'].append(new_tag)
             return _update_tags_
 
         if attribute == 'comments':
@@ -131,7 +149,7 @@ class f:
             return _update_comments_
 
         raise ValueError(f"Unknown update attribute '{attribute}'.")
-    u = update
+    u = update 
 
     @classmethod
     def mk(cls, name, at=None):
