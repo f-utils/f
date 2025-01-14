@@ -12,6 +12,13 @@ class f:
         'all': ['a', 'any', 'every']
     }
 
+    @staticmethod
+    def _resolve_alias(where):
+        for key, aliases in f._aliases.items():
+            if where in aliases:
+                return key
+        raise ValueError(f"Invalid alias '{where}'.)
+
     class spec:
         @classmethod
         def SPECS(cls):
@@ -241,6 +248,26 @@ class f:
         i = info
 
         @classmethod
+        def search(cls, term, where='description', at=None):
+            where_key = f._resolve_alias(where)
+            specs_dict = at if at is not None else cls.SPECS()
+            pattern = re.compile(term)
+            results = []
+
+            for spec_name, info in specs_dict.items():
+                entry_value = info.get(where_key, '')
+                if isinstance(entry_value, list):
+                    entry_value = ' '.join(entry_value)
+                if pattern.search(entry_value):
+                    results.append(info)
+            return results
+
+        @classmethod
+        def check(cls, spec_name, at=None):
+            specs_dict = at if at is not None else cls.SPECS()
+            return spec_name in specs_dict
+
+        @classmethod
         def mk(cls, name, at=None):
             specs_dict = at if at is not None else cls.SPECS()
             def exec_func(*args, **kwargs):
@@ -285,7 +312,7 @@ class f:
                     'comments': comments or {}
                 }
             else:
-                raise ValueError(f"Type '{typename}' is already registered.") 
+                raise ValueError(f"Type '{typename}' is already registered.")
         e = extend
         @classmethod
         def set(cls, *args, **kwargs):
@@ -379,5 +406,26 @@ class f:
                 raise ValueError(f"Unknown attribute '{what}' to print.")
             return info_string
         I = info
+
+        @classmethod
+        def search(cls, term, where='description', at=None):
+            where_key = f._resolve_alias(where)
+            types_dict = at if at is not None else cls.TYPES()
+            pattern = re.compile(term)
+            results = []
+
+            for typename, info in types_dict.items():
+                entry_value = info.get(where_key, '')
+                if isinstance(entry_value, list):
+                    entry_value = ' '.join(entry_value)
+                if pattern.search(entry_value):
+                    results.append(info['type'])
+
+            return results
+
+        @classmethod
+        def check(cls, some_type, at=None):
+            types_dict = at if at is not None else cls.TYPES()
+            return any(some_type == info['type'] for info in types_dict.values())
     t = type
 
