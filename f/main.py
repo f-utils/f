@@ -299,3 +299,48 @@ class f:
         raise ValueError(f"Unknown entry '{entry}'.")
     g = get
 
+    @classmethod
+    def info(cls, f, what='spec'):
+        def _typestr_(typetuple, kwarg_dict):
+            if not typetuple:
+                typetuple = ()
+            if not kwarg_dict:
+                kwarg_dict = {}
+
+            arg_str = ', '.join(t.__name__ if hasattr(t, '__name__') else str(t) for t in typetuple)
+            kwarg_str = ', '.join(f"{key}: {t.__name__}" for key, t in kwarg_dict.items())
+            return ', '.join(filter(None, [arg_str, kwarg_str]))
+
+        spec = cls.spec(f)
+        if what == 'spec':
+            wrapped_desc = textwrap.fill(f"{spec['description']}", width=84)
+            print(f"Spectrum of function '{spec['name']}':")
+            print("  DESC:")
+            print(f"    {wrapped_desc}")
+            print("  STD:")
+            print(f"    {spec['std_repr']}")
+            print("  DOMAIN:")
+            for i, (arg_types, kwarg_types) in enumerate(spec['domain'], 1):
+                kwarg_types = dict(kwarg_types)  # Convert back to dict for the print
+                print(f"    {i}. {_typestr_(arg_types, kwarg_types)}")
+            print("  BODY:")
+            for i, ((arg_combo, kwarg_combo), funcinfo) in enumerate(spec['body'].items(), 1):
+                print(f"    {i}. {_typestr_(arg_combo, dict(kwarg_combo))} => {funcinfo['repr']}")
+        elif what == 'domain':
+            print(f"Domain of function '{spec['name']}':")
+            for i, (arg_types, kwarg_types) in enumerate(spec['domain'], 1):
+                kwarg_types = dict(kwarg_types)  # Convert back to dict for the print
+                print(f"    {i}. {_typestr_(arg_types, kwarg_types)}")
+        elif what == 'std':
+            print(f"Standard return for function '{spec['name']}':")
+            print(f"    {spec['std_repr']}")
+        elif what == 'body':
+            print(f"Body of function '{spec['name']}':")
+            for i, ((arg_combo, kwarg_combo), funcinfo) in enumerate(spec['body'].items(), 1):
+                print(f"    {i}. {_typestr_(arg_combo, dict(kwarg_combo))} => {funcinfo['repr']}")
+        elif what == 'desc':
+            print(f"Description of function '{spec['name']}':")
+            print(f"    {spec['description']}")
+        else:
+            raise ValueError(f"Unknown attribute '{what}' to print.")
+    i = info
