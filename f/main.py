@@ -3,9 +3,19 @@ import inspect
 class f:
     _default_types = None
     _default_specs = None
+    _aliases = {
+        'description': ['d', 'desc', 'description'],
+        'std': ['s', 'std', 'standard'],
+        'body': ['b', 'body'],
+        'tags': ['t', 'tag', 'tags'],
+        'comments': ['c', 'comment', 'comments'],
+        'all': ['a', 'any', 'every']
+    }
 
     class spec:
-        SPECS = f._default_specs or {}
+        @classmethod
+        def SPECS(cls):
+            return f._default_specs or {}
 
         @classmethod
         def init(cls, custom_specs=None):
@@ -14,22 +24,22 @@ class f:
 
         @classmethod
         def set(cls, *args, **kwargs):
+            specs_dict = kwargs.get('SPECS', None)
+            if specs_dict is not None:
+                cls._default_specs = specs_dict
+                return
             if len(args) == 1 and isinstance(args[0], str):
                 function_name = args[0]
-                specs_dict = f._default_specs or cls.SPECS
-                if function_name not in specs_dict:
-                    raise ValueError(f"Function '{function_name}' is not registered.")
-                return specs_dict[function_name]['exec']
-
-            SPECS = kwargs.get('SPECS', None)
-
-            if SPECS is not None:
-                f._default_specs = SPECS
+                custom_specs = kwargs.get('at', None)
+                specs_dict = custom_specs if custom_specs is not None else cls._default_specs
+                if function_name in specs_dict:
+                    return specs_dict[function_name]['exec']
+                raise ValueError(f"Function '{function_name}' not found.")
         s = set
 
         @classmethod
         def extend(cls, name, arg_types, func, at=None):
-            specs_dict = at if at is not None else cls.SPECS
+            specs_dict = at if at is not None else cls.SPECS()
             if name not in specs_dict:
                 raise ValueError(f"Function '{name}' is not registered.")
             spec = specs_dict[name]
@@ -68,7 +78,7 @@ class f:
 
             attribute = next((key for key, aliases in attribute_aliases.items() if attribute in aliases), attribute)
 
-            specs_dict = at if at is not None else f._default_specs or cls.SPECS
+            specs_dict = at if at is not None else f._default_specs or cls.SPECS()
 
             if entity in specs_dict:
                 spec = specs_dict[entity]
@@ -114,7 +124,7 @@ class f:
 
             attribute = next((key for key, aliases in attribute_aliases.items() if attribute in aliases), attribute)
 
-            specs_dict = at if at is not None else f._default_specs or cls.SPECS
+            specs_dict = at if at is not None else f._default_specs or cls.SPECS()
 
             if entity in specs_dict:
                 spec = specs_dict[entity]
@@ -144,7 +154,7 @@ class f:
 
             attribute = next((key for key, aliases in attribute_aliases.items() if attribute in aliases), attribute)
 
-            specs_dict = at if at is not None else f._default_specs or cls.SPECS
+            specs_dict = at if at is not None else f._default_specs or cls.SPECS()
 
             if entity in specs_dict:
                 spec = specs_dict[entity]
@@ -167,8 +177,72 @@ class f:
         d = delete
 
         @classmethod
+        def info(cls, f, what='spec'):
+            attribute = next(
+                (key for key, aliases in f._aliases.items() if what in aliases), what)
+
+            def _typestr_(typetuple, kwarg_dict):
+                if not typetuple:
+                    typetuple = ()
+                if not kwarg_dict:
+                    kwarg_dict = {}
+
+                arg_str = ', '.join(t.__name__ if hasattr(t, '__name__') else str(t) for t in typetuple)
+                kwarg_str = ', '.join(f"{key}: {t.__name__}" for key, t in kwarg_dict.items())
+                return ', '.join(filter(None, [arg_str, kwarg_str]))
+
+            spec = cls.SPECS()[f]
+            info_string = ""
+            if attribute == 'all':
+                wrapped_desc = textwrap.fill(f"{spec['description']}", width=84)
+                info_string += f"Spectrum of function '{spec['name']}':\n"
+                info_string += f"  DESC:\n    {wrapped_desc}\n"
+                info_string += f"  STD:\n    {spec['std_repr']}\n"
+                info_string += f"  TAGS: {', '.join(spec.get('tags', []))}\n"
+                info_string += "  DOMAIN:\n"
+                for i, (arg_types, kwarg_types) in enumerate(spec['domain'], 1):
+                    kwarg_types = dict(kwarg_types)
+                    info_string += f"    {i}. {_typestr_(arg_types, kwarg_types)}\n"
+                info_string += "  BODY:\n"
+                for i, ((arg_combo, kwarg_combo), funcinfo) in enumerate(spec['body'].items(), 1):
+                    info_string += f"    {i}. {_typestr_(arg_combo, dict(kwarg_combo))} => {funcinfo['repr']}\n"
+                info_string += f"  COMMENTS:\n"
+                for comment_id, comment in spec.get('comments', {}).items():
+                    wrapped_comment = textwrap.fill(comment, width=84)
+                    info_string += f"    {comment_id}: {wrapped_comment}\n"
+            elif attribute == 'domain':
+                info_string += f"Domain of spectrum '{spec['name']}':\n"
+                for i, (arg_types, kwarg_types) in enumerate(spec['domain'], 1):
+                    kwarg_types = dict(kwarg_types)
+                    info_string += f"    {i}. {_typestr_(arg_types, kwarg_types)}\n"
+            elif attribute == 'std':
+                info_string += f"Standard return for spectrum '{spec['name']}':\n"
+                info_string += f"    {spec['std_repr']}\n"
+            elif attribute == 'body':
+                info_string += f"Body of spectrum '{spec['name']}':\n"
+                for i, ((arg_combo, kwarg_combo), funcinfo) in enumerate(spec['body'].items(), 1):
+                    info_string += f"    {i}. {_typestr_(arg_combo, dict(kwarg_combo))} => {funcinfo['repr']}\n"
+            elif attribute == 'tags':
+                info_string += f"Tags for spectrum '{spec['name']}':\n"
+                for i, tag in enumerate(spec.get('tags', []), 1):
+                    info_string += f"    {i}. {tag}\n"
+            elif attribute == 'comments':
+                info_string += f"Comments for spectrum '{spec['name']}':\n"
+                for comment_id, comment in spec.get('comments', {}).items():
+                    wrapped_comment = textwrap.fill(comment, width=84)
+                    info_string += f"    {comment_id}: {wrapped_comment}\n"
+            elif attribute == 'description':
+                wrapped_desc = textwrap.fill(spec['description'], width=84)
+                info_string += f"Description of spectrum '{spec['name']}':\n"
+                info_string += f"    {wrapped_desc}\n"
+            else:
+                raise ValueError(f"Unknown attribute '{what}' to print.")
+            return info_string
+        i = info
+
+        @classmethod
         def mk(cls, name, at=None):
-            specs_dict = at if at is not None else cls.SPECS
+            specs_dict = at if at is not None else cls.SPECS()
             def exec_func(*args, **kwargs):
                 funcspec = specs_dict[name]
                 for (arg_types, kwarg_types_tuple), funcinfo in funcspec['body'].items():
@@ -193,13 +267,26 @@ class f:
     s = spec
 
     class type:
-        TYPES = f._default_types or {}
+        @classmethod
+        def TYPES(cls):
+            return f._default_types
 
         @classmethod
         def init(cls, custom_types=None):
-            f._default_types = custom_types
-        i = init
+            f._default_types = custom_types if custom_types is not None else {}
 
+        @classmethod
+        def extend(cls, typename, description, tags=None, comments=None, at=None):
+            types_dict = at if at is not None else f._default_types
+            if typename not in types_dict:
+                types_dict[typename] = {
+                    'description': description,
+                    'tags': tags or [],
+                    'comments': comments or {}
+                }
+            else:
+                raise ValueError(f"Type '{typename}' is already registered.") 
+        e = extend
         @classmethod
         def set(cls, *args, **kwargs):
             TYPES = kwargs.get('TYPES', None)
@@ -207,18 +294,6 @@ class f:
             if TYPES is not None:
                 f._default_types = TYPES
         s = set
-
-        @classmethod
-        def extend(cls, typename, description, tags=None, comments=None, at=None):
-            types_dict = at if at is not None else f._default_types or cls.TYPES
-            if typename in types_dict:
-                raise ValueError(f"Type '{typename}' is already registered.")
-            types_dict[typename] = {
-                'description': description,
-                'tags': tags or [],
-                'comments': comments or {}
-            }
-        e = extend
 
         @classmethod
         def update(cls, typename, description=None, tags=None, comments=None, at=None):
@@ -264,6 +339,45 @@ class f:
                 for comment in comments:
                     if comment in types_dict[typename]['comments']:
                         del types_dict[typename]['comments'][comment]
-        d = delete 
+        d = delete
+
+        @classmethod
+        def info(cls, typename, what='all'):
+            attribute = next(
+                (key for key, aliases in f._aliases.items() if what in aliases), what)
+
+            type_info = cls.TYPES().get(typename, None)
+            if not type_info:
+                raise ValueError(f"Type '{typename}' not found.")
+
+            info_string = f"Type '{typename}':\n"
+            if attribute == 'description':
+                wrapped_desc = textwrap.fill(type_info['description'], width=84)
+                info_string += f"Type '{typename} description':\n"
+                info_string += f"    {wrapped_desc}\n"
+            elif attribute == 'tags':
+                info_string += f"Type '{typename} tags':\n"
+                for i, tag in enumerate(type_info.get('tags', []), 1):
+                    info_string += f"    {i}. {tag}\n"
+            elif attribute == 'comments':
+                info_string += f"Type '{typename} comments':\n"
+                for comment_id, comment in type_info.get('comments', {}).items():
+                    wrapped_comment = textwrap.fill(comment, width=84)
+                    info_string += f"    {comment_id}: {wrapped_comment}\n"
+            elif attribute == 'all':
+                wrapped_desc = textwrap.fill(type_info['description'], width=84)
+                info_string += f"Type '{typename}  info:\n"
+                info_string += f"    DESC: {wrapped_desc}\n"
+                info_string += f"    TAGS: \n"
+                for i, tag in enumerate(type_info.get('tags', []), 1):
+                    info_string += f"    {i}. {tag}\n"
+                info_string += f"    COMMENTS:\n"
+                for comment_id, comment in type_info.get('comments', {}).items():
+                    wrapped_comment = textwrap.fill(comment, width=84)
+                    info_string += f"    {comment_id}: {wrapped_comment}\n"
+            else:
+                raise ValueError(f"Unknown attribute '{what}' to print.")
+            return info_string
+        I = info
     t = type
 
