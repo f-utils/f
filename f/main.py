@@ -37,8 +37,16 @@ class f:
                 raise AttributeError(f"Provided '{len(args)}' arguments. Expecting at most one argument.")
         db = database
 
+        @classmethod
         def init(cls, name, description, std_return_function, at=None):
-            spec_dict = at if at is not None else cls.export()
+            if not isinstance(name, str):
+                raise TypeError("The name must be a string.")
+            if not isinstance(description, str):
+                raise TypeError("The description must be a string.")
+            if not callable(std_return_function):
+                raise TypeError("The std_return_function must be a function or a lambda.")
+
+            spec_dict = at if at is not None else f._default_specs
             if name in spec_dict:
                 raise ValueError(f"Specification '{name}' is already registered.")
 
@@ -49,10 +57,13 @@ class f:
                     'comments': {}
                 },
                 'spec': {
-                    'std': std_return_function,
+                    'std': {
+                        'func': std_return_function,
+                        'repr': cls.repr(std_return_function)
+                    },
                     'domain': [],
                     'body': {},
-                    'std_repr': f.spec.repr(std_return_function)
+                    'exec': ''
                 }
             }
         i = init
@@ -64,7 +75,7 @@ class f:
                 custom_specs = kwargs.get('at', None)
                 specs_dict = custom_specs if custom_specs is not None else cls.export()
                 if function_name in specs_dict:
-                    return specs_dict[function_name]['exec']
+                    return specs_dict[function_name]['spec']['exec']
                 raise ValueError(f"Function '{function_name}' not found.")
         s = set
 
@@ -87,60 +98,78 @@ class f:
                 kwarg_types = {}
 
             kwarg_items = tuple(kwarg_types.items())
-            if (pos_types, kwarg_items) not in spec['domain']:
-                spec['domain'].append((pos_types, kwarg_items))
+            if (pos_types, kwarg_items) not in spec['spec']['domain']:
+                spec['spec']['domain'].append((pos_types, kwarg_items))
 
-            spec['body'][(pos_types, kwarg_items)] = {
+            spec['spec']['body'][(pos_types, kwarg_items)] = {
                 'func': func,
                 'repr': cls.repr(func)
             }
-            spec['exec'] = cls.mk(name, at=specs_dict)
+            spec['spec']['exec'] = cls.mk(name, at=specs_dict)
         e = extend
 
         @classmethod
-        def update(cls, entity, attribute, at=None):
-            attribute_aliases = {
-                'description': ['d', 'desc', 'description'],
-                'std': ['s', 'std', 'standard'],
-                'body': ['b', 'body'],
-                'tags': ['t', 'tag', 'tags'],
-                'comments': ['c', 'comment', 'comments']
-            }
+        def update(cls, spec_name, attribute, at=None):
+            attribute = f._resolve_alias(attribute)
+            specs_dict = at if at is not None else f._default_specs
+            if spec_name not in specs_dict:
+                raise ValueError(f"Specification '{spec_name}' is not registered.")
 
-            attribute = next((key for key, aliases in attribute_aliases.items() if attribute in aliases), attribute)
-
-            specs_dict = at if at is not None else cls.export()
-
-            if entity in specs_dict:
-                spec = specs_dict[entity]
-            else:
-                raise ValueError(f"Entity '{entity}' not found in specs.")
+            spec_info = specs_dict[spec_name]
 
             if attribute == 'description':
                 def _update_desc_(new_description):
-                    spec['description'] = new_description
+                    if not isinstance(new_description, str):
+                        raise TypeError("The new description must be a string.")
+                    spec_info['metadata']['description'] = new_description
                 return _update_desc_
 
-            if attribute == 'std' and spec in specs_dict.values():
-                def _update_std_(new_std_func):
-                    spec['std'] = new_std_func
-                    spec['std_repr'] = cls.repr(new_std_func)
-                    cls.set(spec['name'])
-                    specs_dict[spec['name']] = spec
+            if attribute == 'tags':
+                def _update_tag_(old_tag, new_tag):
+                    if not isinstance(old_tag, str) or not isinstance(new_tag, str):
+                        raise TypeError("Both old tag and new tag must be strings.")
+                    if not spec_info['metadata']['tags']:
+                        raise ValueError("Cannot update tag as the tags list is empty.")
+                    if new_tag in spec_info['metadata']['tags']:
+                        raise ValueError(f"Tag '{new_tag}' already exists in specification '{spec_name}'.")
+                    if old_tag in spec_info['metadata']['tags']:
+                        spec_info['metadata']['tags'][spec_info['metadata']['tags'].index(old_tag)] = new_tag
+                    else:
+                        raise ValueError(f"Tag '{old_tag}' not found in specification '{spec_name}'.")
+                return _update_tag_
+
+            if attribute == 'comments':
+                def _update_comment_(comment_id, new_comment_value):
+                    if not isinstance(comment_id, str) or not isinstance(new_comment_value, str):
+                        raise TypeError("Both comment ID and new comment value must be strings.")
+                    if not spec_info['metadata']['comments']:
+                        raise ValueError("Cannot update comment as the comments dictionary is empty.")
+                    if comment_id in spec_info['metadata']['comments']:
+                        spec_info['metadata']['comments'][comment_id] = new_comment_value
+                    else:
+                        raise ValueError(f"Comment ID '{comment_id}' not found in specification '{spec_name}'.")
+                return _update_comment_
+
+            if attribute == 'std':
+                def _update_std_(new_standard_return):
+                    if not callable(new_standard_return):
+                        raise TypeError("The new standard return must be a function or a lambda.")
+                    spec_info['spec']['std'] = new_standard_return
+                    spec_info['spec']['std_repr'] = cls.repr(new_standard_return)
                 return _update_std_
 
-            if attribute == 'body' and spec in specs_dict.values():
-                def _update_body_(typeargument, new_argument_function):
-                    for (arg_types, kwarg_types), func in spec['body'].items():
-                        if typeargument in arg_types:
-                            spec['body'][(arg_types, kwarg_types)] = {
-                                'func': new_argument_function,
-                                'repr': cls.repr(new_argument_function)
+            if attribute == 'body':
+                def _update_body_(given_type, new_return_for_given_type):
+                    if not callable(new_return_for_given_type):
+                        raise TypeError("The new return for given type must be a function or a lambda.")
+                    for (arg_types, kwarg_types), func in spec_info['spec']['body'].items():
+                        if given_type in arg_types:
+                            spec_info['spec']['body'][(arg_types, kwarg_types)] = {
+                                'func': new_return_for_given_type,
+                                'repr': cls.repr(new_return_for_given_type)
                             }
-                            cls.set(spec['name'])
-                            specs_dict[spec['name']] = spec
                             return
-                    raise ValueError(f"Type '{typeargument}' not found in domain.")
+                    raise ValueError(f"Type '{given_type}' not found in domain for specification '{spec_name}'.")
                 return _update_body_
 
             raise ValueError(f"Unknown or unsupported update attribute '{attribute}'.")
@@ -148,17 +177,11 @@ class f:
 
         @classmethod
         def add(cls, entity, attribute, at=None):
-            attribute_aliases = {
-                'tags': ['t', 'tag', 'tags'],
-                'comments': ['c', 'comment', 'comments']
-            }
-
-            attribute = next((key for key, aliases in attribute_aliases.items() if attribute in aliases), attribute)
-
+            attribute = [f._resolve_alias(attribute)]
             specs_dict = at if at is not None else cls.export()
 
             if entity in specs_dict:
-                spec = specs_dict[entity]
+                spec = specs_dict[entity]['metadata']
             else:
                 raise ValueError(f"Entity '{entity}' not found in specs.")
 
@@ -178,17 +201,10 @@ class f:
 
         @classmethod
         def delete(cls, entity, attribute, at=None):
-            attribute_aliases = {
-                'tags': ['t', 'tag', 'tags'],
-                'comments': ['c', 'comment', 'comments']
-            }
-
-            attribute = next((key for key, aliases in attribute_aliases.items() if attribute in aliases), attribute)
-
+            attribute = [f._resolve_alias(attribute)]
             specs_dict = at if at is not None else cls.export()
-
             if entity in specs_dict:
-                spec = specs_dict[entity]
+                spec = specs_dict[entity]['metadata']
             else:
                 raise ValueError(f"Entity '{entity}' not found in specs.")
 
@@ -208,22 +224,22 @@ class f:
         d = delete
 
         @classmethod
-        def get(cls, obj, entry, at=None):
+        def get(cls, spec_name, entry, at=None):
             entry_key = f._resolve_alias(entry)
             specs_dict = at if at is not None else cls.export()
 
-            if object not in specs_dict:
-                raise ValueError(f"Spectra '{obj}' not found.")
+            if spec_name not in specs_dict:
+                raise ValueError(f"Spectra '{spec_name}' not found.")
 
-            spec = specs_dict[obj]
+            spec = specs_dict[spec_name]
             if entry_key in spec:
                 return spec[entry_key]
             else:
-                raise ValueError(f"Entry '{entry_key}' not found in spectra '{obj}'.")
+                raise ValueError(f"Entry '{entry_key}' not found in spectra '{spec_name}'.")
         g = get
 
         @classmethod
-        def info(cls, spectrum_name, what='all'):
+        def info(cls, spec_name, what='all'):
             info_string = ""
 
             if what == 'all':
@@ -231,10 +247,10 @@ class f:
             else:
                 attributes = [f._resolve_alias(what)]
 
-            info_string += f"Spectrum of function '{spectrum_name}':\n"
+            info_string += f"Spectrum of function '{spec_name}':\n"
 
             for attribute in attributes:
-                entry = cls.get(spectrum_name, attribute)
+                entry = cls.get(spec_name, attribute)
                 if attribute == 'description':
                     wrapped_entry = textwrap.fill(entry, width=84)
                     info_string += f"  DESC:\n    {wrapped_entry}\n"
@@ -282,16 +298,16 @@ class f:
         c = check
 
         @classmethod
-        def mk(cls, name, at=None):
+        def mk(cls, spec_name, at=None):
             specs_dict = at if at is not None else cls.export()
             def exec_func(*args, **kwargs):
-                funcspec = specs_dict[name]
-                for (arg_types, kwarg_types_tuple), funcinfo in funcspec['body'].items():
+                spec = specs_dict[spec_name]
+                for (arg_types, kwarg_types_tuple), funcinfo in spec['spec']['body'].items():
                     kwarg_types = dict(kwarg_types_tuple)
                     if all(isinstance(arg, typ) for arg, typ in zip(args, arg_types)) and \
                             all(isinstance(kwargs.get(key), typ) for key, typ in kwarg_types.items()):
                         return funcinfo['func'](*args, **kwargs)
-                return funcspec['std'](*args, **kwargs)
+                return spec['std'](*args, **kwargs)
             return exec_func
 
         @classmethod
@@ -305,6 +321,7 @@ class f:
                 lambda_idx = source.index("lambda")
                 return source[lambda_idx:].strip().rstrip(')')
             return source
+        r = repr
     s = spec
 
     class type:
@@ -337,49 +354,82 @@ class f:
         i = init
 
         @classmethod
-        def update(cls, typename, desc=None, tags=None, comments=None, at=None):
-            types_dict = at if at is not None else f._default_types or cls.TYPES
+        def update(cls, typename, attribute, at=None):
+            attribute = f._resolve_alias(attribute)
+            types_dict = at if at is not None else f._default_types
             if typename not in types_dict:
                 raise ValueError(f"Type '{typename}' is not registered.")
+            type_info = types_dict[typename]
 
-            if desc is not None:
-                types_dict[typename]['description'] = desc
+            if attribute == 'description':
+                def _update_desc_(new_description):
+                    type_info['description'] = new_description
+                return _update_desc_
+            if attribute == 'tags':
+                def _update_tag_(old_tag, new_tag):
+                    if not type_info['tags']:
+                        raise ValueError("Cannot update tag as the tags list is empty.")
+                    if new_tag in type_info['tags']:
+                        raise ValueError(f"Tag '{new_tag}' already exists in type '{typename}'.")
+                    if old_tag in type_info['tags']:
+                        type_info['tags'][type_info['tags'].index(old_tag)] = new_tag
+                    else:
+                        raise ValueError(f"Tag '{old_tag}' not found in type '{typename}'.")
+                return _update_tag_
+            if attribute == 'comments':
+                def _update_comment_(comment_id, new_comment_value):
+                    if not type_info['comments']:
+                        raise ValueError("Cannot update comment as the comments dictionary is empty.")
+                    if comment_id in type_info['comments']:
+                        type_info['comments'][comment_id] = new_comment_value
+                    else:
+                        raise ValueError(f"Comment ID '{comment_id}' not found in type '{typename}'.")
+                return _update_comment_
 
-            if tags is not None:
-                types_dict[typename]['tags'] = tags
-
-            if comments is not None:
-                types_dict[typename]['comments'] = comments
+            raise ValueError(f"Unknown or unsupported update attribute '{attribute}'.")
         u = update
 
         @classmethod
-        def add(cls, typename, tags=None, comments=None, at=None):
-            types_dict = at if at is not None else f._default_types or cls.TYPES
+        def add(cls, typename, attribute, at=None):
+            attribute = f._resolve_alias(attribute)
+            types_dict = at if at is not None else f._default_types
             if typename not in types_dict:
                 raise ValueError(f"Type '{typename}' is not registered.")
+            type_info = types_dict[typename]
 
-            if tags:
-                types_dict[typename]['tags'].extend(tags)
-
-            if comments:
-                types_dict[typename]['comments'].update(comments)
+            if attribute == 'tags':
+                def _add_tag_(tag):
+                    if tag not in type_info['tags']:
+                        type_info['tags'].append(tag)
+                return _add_tag_
+            if attribute == 'comments':
+                def _add_comment_(comment_id, comment_text):
+                    type_info['comments'][comment_id] = comment_text
+                return _add_comment_
+            raise ValueError(f"Unknown or unsupported add attribute '{attribute}'.")
         a = add
 
         @classmethod
-        def delete(cls, typename, tags=None, comments=None, at=None):
-            types_dict = at if at is not None else f._default_types or cls.TYPES
+        def delete(cls, typename, attribute, at=None):
+            attribute = f._resolve_alias(attribute)
+            types_dict = at if at is not None else f._default_types
             if typename not in types_dict:
                 raise ValueError(f"Type '{typename}' is not registered.")
+            type_info = types_dict[typename]
 
-            if tags:
-                for tag in tags:
-                    if tag in types_dict[typename]['tags']:
-                        types_dict[typename]['tags'].remove(tag)
+            if attribute == 'tags':
+                def _delete_tag_(tag):
+                    if tag in type_info['tags']:
+                        type_info['tags'].remove(tag)
+                return _delete_tag_
 
-            if comments:
-                for comment in comments:
-                    if comment in types_dict[typename]['comments']:
-                        del types_dict[typename]['comments'][comment]
+            if attribute == 'comments':
+                def _delete_comment_(comment_id):
+                    if comment_id in type_info['comments']:
+                        del type_info['comments'][comment_id]
+                return _delete_comment_
+
+            raise ValueError(f"Unknown or unsupported delete attribute '{attribute}'.")
         d = delete
 
         @classmethod
