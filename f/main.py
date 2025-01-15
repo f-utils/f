@@ -233,9 +233,8 @@ class f:
                     for comment_id, comment in entry.items():
                         wrapped_comment = textwrap.fill(comment, width=84)
                         info_string += f"    {comment_id}: {wrapped_comment}\n"
-            
             return info_string
-        I = info 
+        I = info
 
         @classmethod
         def search(cls, term, where='description', at=None):
@@ -397,9 +396,8 @@ class f:
                     for comment_id, comment in entry.items():
                         wrapped_comment = textwrap.fill(comment, width=84)
                         info_string += f"    {comment_id}: {wrapped_comment}\n"
-            
             return info_string
-        I = info 
+        I = info
 
         @classmethod
         def search(cls, term, where='description', at=None):
