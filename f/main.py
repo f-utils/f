@@ -23,20 +23,19 @@ class f:
 
     class spec:
         @classmethod
-        def SPECS(cls):
+        def export(cls):
             return f._default_specs or {}
+        E = export
 
-        @classmethod
-        def init(cls, custom_specs=None):
-            f._default_specs = custom_specs
-        i = init
+        def database(cls, custom_specs=None):
+            if custom_specs is None:
+                f._default_specs = {}
+            else:
+                f._default_specs = custom_specs
+        db = database
 
         @classmethod
         def set(cls, *args, **kwargs):
-            specs_dict = kwargs.get('SPECS', None)
-            if specs_dict is not None:
-                cls._default_specs = specs_dict
-                return
             if len(args) == 1 and isinstance(args[0], str):
                 function_name = args[0]
                 custom_specs = kwargs.get('at', None)
@@ -186,18 +185,19 @@ class f:
         d = delete
 
         @classmethod
-        def get(cls, object, entry, at=None):
+        def get(cls, obj, entry, at=None):
             entry_key = f._resolve_alias(entry)
             specs_dict = at if at is not None else cls.SPECS()
 
             if object not in specs_dict:
-                raise ValueError(f"Spectra '{object}' not found.")
+                raise ValueError(f"Spectra '{obj}' not found.")
 
-            spec = specs_dict[object]
+            spec = specs_dict[obj]
             if entry_key in spec:
                 return spec[entry_key]
             else:
-                raise ValueError(f"Entry '{entry_key}' not found in spectra '{object}'.")
+                raise ValueError(f"Entry '{entry_key}' not found in spectra '{obj}'.")
+        g = get
 
         @classmethod
         def info(cls, spectrum_name, what='all'):
@@ -234,7 +234,7 @@ class f:
                         wrapped_comment = textwrap.fill(comment, width=84)
                         info_string += f"    {comment_id}: {wrapped_comment}\n"
             return info_string
-        I = info
+        i = info
 
         @classmethod
         def search(cls, term, where='description', at=None):
@@ -250,11 +250,13 @@ class f:
                 if pattern.search(entry_value):
                     results.append(info)
             return results
+        S = search
 
         @classmethod
         def check(cls, spec_name, at=None):
             specs_dict = at if at is not None else cls.SPECS()
             return spec_name in specs_dict
+        c = check
 
         @classmethod
         def mk(cls, name, at=None):
@@ -284,12 +286,17 @@ class f:
 
     class type:
         @classmethod
-        def TYPES(cls):
+        def export(cls):
             return f._default_types
+        E = export
 
         @classmethod
-        def init(cls, custom_types=None):
-            f._default_types = custom_types if custom_types is not None else {}
+        def database(cls, custom_types=None):
+            if custom_types is None:
+                f._default_types = {}
+            else:
+                f._default_types = custom_types
+        db = database
 
         @classmethod
         def extend(cls, typename, description, tags=None, comments=None, at=None):
@@ -303,13 +310,6 @@ class f:
             else:
                 raise ValueError(f"Type '{typename}' is already registered.")
         e = extend
-        @classmethod
-        def set(cls, *args, **kwargs):
-            TYPES = kwargs.get('TYPES', None)
-
-            if TYPES is not None:
-                f._default_types = TYPES
-        s = set
 
         @classmethod
         def update(cls, typename, description=None, tags=None, comments=None, at=None):
@@ -358,18 +358,19 @@ class f:
         d = delete
 
         @classmethod
-        def get(cls, object, entry, at=None):
+        def get(cls, obj, entry, at=None):
             entry_key = f._resolve_alias(entry)
             types_dict = at if at is not None else cls.TYPES()
 
             if object not in types_dict:
-                raise ValueError(f"Type '{object}' not found.")
+                raise ValueError(f"Type '{obj}' not found.")
 
             type_info = types_dict[object]
             if entry_key in type_info:
                 return type_info[entry_key]
             else:
-                raise ValueError(f"Entry '{entry_key}' not found in type '{object}'.")
+                raise ValueError(f"Entry '{entry_key}' not found in type '{obj}'.")
+        g = get
 
         @classmethod
         def info(cls, typename, what='all'):
@@ -397,7 +398,7 @@ class f:
                         wrapped_comment = textwrap.fill(comment, width=84)
                         info_string += f"    {comment_id}: {wrapped_comment}\n"
             return info_string
-        I = info
+        i = info
 
         @classmethod
         def search(cls, term, where='description', at=None):
@@ -414,10 +415,12 @@ class f:
                     results.append(typename)
 
             return results
+        S = search
 
         @classmethod
         def check(cls, typename, at=None):
             types_dict = at if at is not None else cls.TYPES()
             return typename in types_dict
+        c = check
     t = type
 
