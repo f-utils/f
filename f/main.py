@@ -1,4 +1,5 @@
 import inspect
+import textwrap
 
 class f:
     _default_types = None
@@ -17,7 +18,7 @@ class f:
         for key, aliases in f._aliases.items():
             if where in aliases:
                 return key
-        raise ValueError(f"Invalid alias '{where}'.)
+        raise ValueError(f"Invalid alias '{where}'.")
 
     class spec:
         @classmethod
@@ -375,25 +376,25 @@ class f:
 
             type_info = cls.TYPES().get(typename, None)
             if not type_info:
-                raise ValueError(f"Type '{typename}' not found.")
+                raise ValueError(f"Type '{typename.__name__}' not found.")
 
-            info_string = f"Type '{typename}':\n"
+            info_string = ""
             if attribute == 'description':
                 wrapped_desc = textwrap.fill(type_info['description'], width=84)
-                info_string += f"Type '{typename} description':\n"
+                info_string += f"Type '{typename.__name__}' description:\n"
                 info_string += f"    {wrapped_desc}\n"
             elif attribute == 'tags':
-                info_string += f"Type '{typename} tags':\n"
+                info_string += f"Type '{typename.__name__}' tags:\n"
                 for i, tag in enumerate(type_info.get('tags', []), 1):
                     info_string += f"    {i}. {tag}\n"
             elif attribute == 'comments':
-                info_string += f"Type '{typename} comments':\n"
+                info_string += f"Type '{typename.__name__}' comment:\n"
                 for comment_id, comment in type_info.get('comments', {}).items():
                     wrapped_comment = textwrap.fill(comment, width=84)
                     info_string += f"    {comment_id}: {wrapped_comment}\n"
             elif attribute == 'all':
                 wrapped_desc = textwrap.fill(type_info['description'], width=84)
-                info_string += f"Type '{typename}  info:\n"
+                info_string += f"Type '{typename.__name__}'  info:\n"
                 info_string += f"    DESC: {wrapped_desc}\n"
                 info_string += f"    TAGS: \n"
                 for i, tag in enumerate(type_info.get('tags', []), 1):
