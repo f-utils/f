@@ -27,19 +27,42 @@ class f:
             return f._default_specs or {}
         E = export
 
-        def database(cls, custom_specs=None):
-            if custom_specs is None:
+        @classmethod
+        def database(cls, *args):
+            if len(args) == 1:
+                f._default_specs = args[0]
+            elif len(args) == 0:
                 f._default_specs = {}
             else:
-                f._default_specs = custom_specs
+                raise AttributeError(f"Provided '{len(args)}' arguments. Expecting at most one argument.")
         db = database
+
+        def init(cls, name, description, std_return_function, at=None):
+            spec_dict = at if at is not None else cls.export()
+            if name in spec_dict:
+                raise ValueError(f"Specification '{name}' is already registered.")
+
+            spec_dict[name] = {
+                'metadata': {
+                    'description': description,
+                    'tags': [],
+                    'comments': {}
+                },
+                'spec': {
+                    'std': std_return_function,
+                    'domain': [],
+                    'body': {},
+                    'std_repr': f.spec.repr(std_return_function)
+                }
+            }
+        i = init
 
         @classmethod
         def set(cls, *args, **kwargs):
             if len(args) == 1 and isinstance(args[0], str):
                 function_name = args[0]
                 custom_specs = kwargs.get('at', None)
-                specs_dict = custom_specs if custom_specs is not None else cls._default_specs
+                specs_dict = custom_specs if custom_specs is not None else cls.export()
                 if function_name in specs_dict:
                     return specs_dict[function_name]['exec']
                 raise ValueError(f"Function '{function_name}' not found.")
@@ -47,7 +70,7 @@ class f:
 
         @classmethod
         def extend(cls, name, arg_types, func, at=None):
-            specs_dict = at if at is not None else cls.SPECS()
+            specs_dict = at if at is not None else cls.export()
             if name not in specs_dict:
                 raise ValueError(f"Function '{name}' is not registered.")
             spec = specs_dict[name]
@@ -86,7 +109,7 @@ class f:
 
             attribute = next((key for key, aliases in attribute_aliases.items() if attribute in aliases), attribute)
 
-            specs_dict = at if at is not None else f._default_specs or cls.SPECS()
+            specs_dict = at if at is not None else cls.export()
 
             if entity in specs_dict:
                 spec = specs_dict[entity]
@@ -132,7 +155,7 @@ class f:
 
             attribute = next((key for key, aliases in attribute_aliases.items() if attribute in aliases), attribute)
 
-            specs_dict = at if at is not None else f._default_specs or cls.SPECS()
+            specs_dict = at if at is not None else cls.export()
 
             if entity in specs_dict:
                 spec = specs_dict[entity]
@@ -162,7 +185,7 @@ class f:
 
             attribute = next((key for key, aliases in attribute_aliases.items() if attribute in aliases), attribute)
 
-            specs_dict = at if at is not None else f._default_specs or cls.SPECS()
+            specs_dict = at if at is not None else cls.export()
 
             if entity in specs_dict:
                 spec = specs_dict[entity]
@@ -187,7 +210,7 @@ class f:
         @classmethod
         def get(cls, obj, entry, at=None):
             entry_key = f._resolve_alias(entry)
-            specs_dict = at if at is not None else cls.SPECS()
+            specs_dict = at if at is not None else cls.export()
 
             if object not in specs_dict:
                 raise ValueError(f"Spectra '{obj}' not found.")
@@ -234,12 +257,12 @@ class f:
                         wrapped_comment = textwrap.fill(comment, width=84)
                         info_string += f"    {comment_id}: {wrapped_comment}\n"
             return info_string
-        i = info
+        I = info
 
         @classmethod
         def search(cls, term, where='description', at=None):
             where_key = f._resolve_alias(where)
-            specs_dict = at if at is not None else cls.SPECS()
+            specs_dict = at if at is not None else cls.export()
             pattern = re.compile(term)
             results = []
 
@@ -254,13 +277,13 @@ class f:
 
         @classmethod
         def check(cls, spec_name, at=None):
-            specs_dict = at if at is not None else cls.SPECS()
+            specs_dict = at if at is not None else cls.export()
             return spec_name in specs_dict
         c = check
 
         @classmethod
         def mk(cls, name, at=None):
-            specs_dict = at if at is not None else cls.SPECS()
+            specs_dict = at if at is not None else cls.export()
             def exec_func(*args, **kwargs):
                 funcspec = specs_dict[name]
                 for (arg_types, kwarg_types_tuple), funcinfo in funcspec['body'].items():
@@ -291,34 +314,36 @@ class f:
         E = export
 
         @classmethod
-        def database(cls, custom_types=None):
-            if custom_types is None:
+        def database(cls, *args):
+            if len(args) == 1:
+                f._default_types = args[0]
+            elif len(args) == 0:
                 f._default_types = {}
             else:
-                f._default_types = custom_types
+                raise AttributeError(f"Provided '{len(args)}' arguments. Expecting at most one argument.")
         db = database
 
         @classmethod
-        def extend(cls, typename, description, tags=None, comments=None, at=None):
-            types_dict = at if at is not None else f._default_types
-            if typename not in types_dict:
-                types_dict[typename] = {
-                    'description': description,
-                    'tags': tags or [],
-                    'comments': comments or {}
-                }
-            else:
-                raise ValueError(f"Type '{typename}' is already registered.")
-        e = extend
+        def init(cls, some_type, description, at=None):
+            types_dict = at if at is not None else cls.export()
+            if some_type in types_dict:
+                raise ValueError(f"Type '{some_type}' is already registered.")
+
+            types_dict[some_type] = {
+                'description': description,
+                'tags': [],
+                'comments': {}
+            }
+        i = init
 
         @classmethod
-        def update(cls, typename, description=None, tags=None, comments=None, at=None):
+        def update(cls, typename, desc=None, tags=None, comments=None, at=None):
             types_dict = at if at is not None else f._default_types or cls.TYPES
             if typename not in types_dict:
                 raise ValueError(f"Type '{typename}' is not registered.")
 
-            if description is not None:
-                types_dict[typename]['description'] = description
+            if desc is not None:
+                types_dict[typename]['description'] = desc
 
             if tags is not None:
                 types_dict[typename]['tags'] = tags
@@ -360,12 +385,12 @@ class f:
         @classmethod
         def get(cls, obj, entry, at=None):
             entry_key = f._resolve_alias(entry)
-            types_dict = at if at is not None else cls.TYPES()
+            types_dict = at if at is not None else cls.export()
 
-            if object not in types_dict:
+            if obj not in types_dict:
                 raise ValueError(f"Type '{obj}' not found.")
 
-            type_info = types_dict[object]
+            type_info = types_dict[obj]
             if entry_key in type_info:
                 return type_info[entry_key]
             else:
@@ -398,12 +423,12 @@ class f:
                         wrapped_comment = textwrap.fill(comment, width=84)
                         info_string += f"    {comment_id}: {wrapped_comment}\n"
             return info_string
-        i = info
+        I = info
 
         @classmethod
         def search(cls, term, where='description', at=None):
             where_key = f._resolve_alias(where)
-            types_dict = at if at is not None else cls.TYPES()
+            types_dict = at if at is not None else cls.export()
             pattern = re.compile(term)
             results = []
 
@@ -419,7 +444,7 @@ class f:
 
         @classmethod
         def check(cls, typename, at=None):
-            types_dict = at if at is not None else cls.TYPES()
+            types_dict = at if at is not None else cls.export()
             return typename in types_dict
         c = check
     t = type
