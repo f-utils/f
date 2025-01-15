@@ -1,5 +1,6 @@
 import inspect
 import textwrap
+import re
 
 class f:
     _default_types = None
@@ -420,13 +421,13 @@ class f:
                 if isinstance(entry_value, list):
                     entry_value = ' '.join(entry_value)
                 if pattern.search(entry_value):
-                    results.append(info['type'])
+                    results.append(typename)
 
             return results
 
         @classmethod
-        def check(cls, some_type, at=None):
+        def check(cls, typename, at=None):
             types_dict = at if at is not None else cls.TYPES()
-            return any(some_type == info['type'] for info in types_dict.values())
+            return typename in types_dict
     t = type
 
