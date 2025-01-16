@@ -5,23 +5,32 @@ import re
 class f:
     _default_types = None
     _default_specs = None
-    _aliases = {
-        'description': ['d', 'desc', 'description'],
-        'std': ['s', 'std', 'standard'],
-        'body': ['b', 'body'],
-        'tags': ['t', 'tag', 'tags'],
-        'comments': ['c', 'comment', 'comments'],
-        'all': ['a', 'any', 'every']
-    }
-
-    @staticmethod
-    def _resolve_alias(where):
-        for key, aliases in f._aliases.items():
-            if where in aliases:
-                return key
-        raise ValueError(f"Invalid alias '{where}'.")
 
     class spec:
+        _aliases = {
+            'metadata': {
+                'description': ['d', 'desc', 'description'],
+                'tags': ['t', 'tag', 'tags'],
+                'comments': ['c', 'comment', 'comments']
+                },
+            'spec': {
+                'std': ['s', 'std', 'standard'],
+                'domain': ['d', 'domain'],
+                'body': ['b', 'body']
+            },
+            'all': ['a', 'any', 'every', 'all']
+        }
+
+        @classmethod
+        def _resolve_alias(cls, where):
+            for category, sub_aliases in cls._aliases.items():
+                if category == where:
+                    return category
+                for key, aliases in sub_aliases.items():
+                    if where in aliases:
+                        return key
+            return where
+
         @classmethod
         def export(cls):
             return f._default_specs or {}
@@ -110,7 +119,7 @@ class f:
 
         @classmethod
         def update(cls, spec_name, attribute, at=None):
-            attribute = f._resolve_alias(attribute)
+            attribute = cls._resolve_alias(attribute)
             specs_dict = at if at is not None else f._default_specs
             if spec_name not in specs_dict:
                 raise ValueError(f"Specification '{spec_name}' is not registered.")
@@ -177,7 +186,7 @@ class f:
 
         @classmethod
         def add(cls, entity, attribute, at=None):
-            attribute = [f._resolve_alias(attribute)]
+            attribute = cls._resolve_alias(attribute)
             specs_dict = at if at is not None else cls.export()
 
             if entity in specs_dict:
@@ -201,7 +210,7 @@ class f:
 
         @classmethod
         def delete(cls, entity, attribute, at=None):
-            attribute = [f._resolve_alias(attribute)]
+            attribute = cls._resolve_alias(attribute)
             specs_dict = at if at is not None else cls.export()
             if entity in specs_dict:
                 spec = specs_dict[entity]['metadata']
@@ -225,29 +234,40 @@ class f:
 
         @classmethod
         def get(cls, spec_name, entry, at=None):
-            entry_key = f._resolve_alias(entry)
-            specs_dict = at if at is not None else cls.export()
-
+            specs_dict = at if at is not None else f._default_specs
             if spec_name not in specs_dict:
-                raise ValueError(f"Spectra '{spec_name}' not found.")
+                raise ValueError(f"Specification '{spec_name}' not found.")
 
-            spec = specs_dict[spec_name]
-            if entry_key in spec:
-                return spec[entry_key]
-            else:
-                raise ValueError(f"Entry '{entry_key}' not found in spectra '{spec_name}'.")
+            entry_path = entry.split('.')
+            current = specs_dict[spec_name]
+
+            for part in entry_path:
+                alias = cls._resolve_alias(part)
+
+                for key in ['metadata', 'spec']:
+                    if key in current and alias in current[key]:
+                        current = current[key][alias]
+                        break
+                else:
+                    if isinstance(current, dict) and alias in current:
+                        current = current[alias]
+                    else:
+                        raise ValueError(f"Entry '{part}' not found in specification '{spec_name}'.")
+
+            if isinstance(current, dict):
+                return current
+            return current
+
         g = get
 
         @classmethod
         def info(cls, spec_name, what='all'):
-            info_string = ""
+            info_string = f"Spectrum '{spec_name}':\n"
 
             if what == 'all':
                 attributes = ['description', 'std', 'tags', 'domain', 'body', 'comments']
             else:
-                attributes = [f._resolve_alias(what)]
-
-            info_string += f"Spectrum of function '{spec_name}':\n"
+                attributes = [cls._resolve_alias(what)]
 
             for attribute in attributes:
                 entry = cls.get(spec_name, attribute)
@@ -260,34 +280,39 @@ class f:
                     info_string += f"  TAGS: {', '.join(entry)}\n"
                 elif attribute == 'domain':
                     info_string += "  DOMAIN:\n"
-                    for i, (arg_types, kwarg_types) in enumerate(entry, 1):
-                        kwarg_types = dict(kwarg_types)
-                        info_string += f"    {i}. {_typestr_(arg_types, kwarg_types)}\n"
+                    for i, (arg_types, _) in enumerate(entry, 1):
+                        type_names = ', '.join(str(t.__name__) if hasattr(t, '__name__') else str(t) for t in arg_types)
+                        info_string += f"    {i}. {type_names}\n"
                 elif attribute == 'body':
-                    info_string += "  BODY:\n"
-                    for i, ((arg_combo, kwarg_combo), funcinfo) in enumerate(entry.items(), 1):
-                        info_string += f"    {i}. {_typestr_(arg_combo, dict(kwarg_combo))} => {funcinfo['repr']}\n"
+                    body_info = f"  BODY:\n"
+                    for i, ((arg_combo, _), funcinfo) in enumerate(entry.items(), 1):
+                        some_type = next(iter(arg_combo), 'Unknown')
+                        info_string += f"    {i}. {some_type.__name__ if hasattr(some_type, '__name__') else some_type} => {funcinfo['repr']}\n" 
                 elif attribute == 'comments':
                     info_string += f"  COMMENTS:\n"
                     for comment_id, comment in entry.items():
                         wrapped_comment = textwrap.fill(comment, width=84)
                         info_string += f"    {comment_id}: {wrapped_comment}\n"
+
             return info_string
         I = info
 
         @classmethod
         def search(cls, term, where='description', at=None):
-            where_key = f._resolve_alias(where)
+            where_key = cls._resolve_alias(where)
             specs_dict = at if at is not None else cls.export()
-            pattern = re.compile(term)
             results = []
 
+            pattern = re.compile(term, re.IGNORECASE)
+
             for spec_name, info in specs_dict.items():
-                entry_value = info.get(where_key, '')
+                entry_value = cls.get(spec_name, where_key)
                 if isinstance(entry_value, list):
                     entry_value = ' '.join(entry_value)
+                elif isinstance(entry_value, dict):
+                    entry_value = ' '.join(entry_value.values())
                 if pattern.search(entry_value):
-                    results.append(info)
+                    results.append(spec_name)
             return results
         S = search
 
@@ -304,10 +329,10 @@ class f:
                 spec = specs_dict[spec_name]
                 for (arg_types, kwarg_types_tuple), funcinfo in spec['spec']['body'].items():
                     kwarg_types = dict(kwarg_types_tuple)
-                    if all(isinstance(arg, typ) for arg, typ in zip(args, arg_types)) and \
-                            all(isinstance(kwargs.get(key), typ) for key, typ in kwarg_types.items()):
-                        return funcinfo['func'](*args, **kwargs)
-                return spec['std'](*args, **kwargs)
+                    if len(args) == len(arg_types) and all(isinstance(arg, typ) for arg, typ in zip(args, arg_types)):
+                        if all(isinstance(kwargs.get(key), typ) for key, typ in kwarg_types.items()):
+                            return funcinfo['func'](*args, **kwargs)
+                raise TypeError("No matching function signature found.")
             return exec_func
 
         @classmethod
@@ -322,9 +347,25 @@ class f:
                 return source[lambda_idx:].strip().rstrip(')')
             return source
         r = repr
+
     s = spec
 
     class type:
+        _aliases = {
+            'description': ['d', 'desc', 'description'],
+            'tags': ['t', 'tag', 'tags'],
+            'comments': ['c', 'comment', 'comments'],
+            'all': ['a', 'any', 'every']
+        }
+
+        @classmethod
+        def _resolve_alias(cls, where):
+            for key, aliases in cls._aliases.items():
+                if where in aliases:
+                    return key
+            raise ValueError(f"Invalid alias '{where}'.")
+
+
         @classmethod
         def export(cls):
             return f._default_types
@@ -355,7 +396,7 @@ class f:
 
         @classmethod
         def update(cls, typename, attribute, at=None):
-            attribute = f._resolve_alias(attribute)
+            attribute = cls._resolve_alias(attribute)
             types_dict = at if at is not None else f._default_types
             if typename not in types_dict:
                 raise ValueError(f"Type '{typename}' is not registered.")
@@ -391,7 +432,7 @@ class f:
 
         @classmethod
         def add(cls, typename, attribute, at=None):
-            attribute = f._resolve_alias(attribute)
+            attribute = cls._resolve_alias(attribute)
             types_dict = at if at is not None else f._default_types
             if typename not in types_dict:
                 raise ValueError(f"Type '{typename}' is not registered.")
@@ -411,7 +452,7 @@ class f:
 
         @classmethod
         def delete(cls, typename, attribute, at=None):
-            attribute = f._resolve_alias(attribute)
+            attribute = cls._resolve_alias(attribute)
             types_dict = at if at is not None else f._default_types
             if typename not in types_dict:
                 raise ValueError(f"Type '{typename}' is not registered.")
@@ -434,7 +475,7 @@ class f:
 
         @classmethod
         def get(cls, obj, entry, at=None):
-            entry_key = f._resolve_alias(entry)
+            entry_key = cls._resolve_alias(entry)
             types_dict = at if at is not None else cls.export()
 
             if obj not in types_dict:
@@ -454,7 +495,7 @@ class f:
             if what == 'all':
                 attributes = ['description', 'tags', 'comments']
             else:
-                attributes = [f._resolve_alias(what)]
+                attributes = [cls._resolve_alias(what)]
 
             info_string += f"Type '{typename.__name__}' info:\n"
 
@@ -477,7 +518,7 @@ class f:
 
         @classmethod
         def search(cls, term, where='description', at=None):
-            where_key = f._resolve_alias(where)
+            where_key = cls._resolve_alias(where)
             types_dict = at if at is not None else cls.export()
             pattern = re.compile(term)
             results = []
