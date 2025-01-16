@@ -358,6 +358,7 @@ class f:
             'all': ['a', 'any', 'every']
         }
 
+
         @classmethod
         def _resolve_alias(cls, where):
             for key, aliases in cls._aliases.items():

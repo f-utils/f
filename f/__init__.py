@@ -19,4 +19,3 @@ f.t.i(dict,       'key and value sets')
 f.t.i(bytes,      'bytes representation')
 f.t.i(bytearray,  'bytes sequences')
 f.t.i(memoryview, 'memory access')
-
