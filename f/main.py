@@ -27,6 +27,9 @@ class f:
     f = func
 
     class spec:
+        class specErr(Exception):
+            pass
+
         _aliases = {
             'metadata': {
                 'description': ['d', 'desc', 'description'],
@@ -390,6 +393,9 @@ class f:
     s = spec
 
     class type:
+        class typeErr(Exception):
+            pass
+
         _aliases = {
             'description': ['d', 'desc', 'description'],
             'tags': ['t', 'tag', 'tags'],
