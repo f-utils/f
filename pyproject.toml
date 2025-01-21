@@ -1,14 +1,15 @@
 [project]
-name = "f"
+name = "some_name"
 version = "0.0.0"
-description = "The Python implementation of f-utils systematics"
+description = "some description"
 readme = "README.md"
 requires-python = ">=3.6"
-license = {text = "MIT"}
+license = {text = "some_license"}
 authors = [
-    {name = "Yuri Ximenes", email = "yx.dev@gmx.ie"},
+    {name = "your_name", email = "your@email.com"},
 ]
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
+    
