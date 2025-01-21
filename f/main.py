@@ -6,6 +6,26 @@ class f:
     _default_types = None
     _default_specs = None
 
+    class func:
+        class funcErr(Exception):
+            pass
+
+        def __init__(self, func):
+            if not callable(func):
+                raise self.funcErr(f"'{func}' is not a function.")
+            self._function = function
+
+        def __call__(self, *args, **kwargs):
+            return self._function(*args, **kwargs)
+
+        def __mul__(self, other):
+            if not isinstance(other, func):
+                raise self.funcErr(f"'{other}'is not a function: the composition is defined only between functions.")
+            def comp_(*args, **kwargs):
+                return self._function(other(*args, **kwargs))
+            return func(comp_)
+    f = func
+
     class spec:
         _aliases = {
             'metadata': {
