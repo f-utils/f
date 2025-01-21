@@ -347,8 +347,12 @@ class f:
                     if len(args) == len(arg_types) and all(isinstance(arg, typ) for arg, typ in zip(args, arg_types)):
                         if all(isinstance(kwargs.get(key), typ) for key, typ in kwarg_types.items()):
                             return funcinfo['func'](*args, **kwargs)
-                raise TypeError("No matching function signature found.")
+                mismatch_types = [type(arg).__name__ for arg in args if type(arg) not in arg_types]
+                if mismatch_types:
+                    raise TypeError(f"type '{mismatch_types[0]}' is not in the domain of spectra '{spec_name}'")
+                raise TypeError(f"No matching function signature found for spectra '{spec_name}'.")
             return exec_func
+
 
         @classmethod
         def repr(cls, func):
