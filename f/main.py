@@ -21,6 +21,21 @@ class f:
             'all': ['a', 'any', 'every', 'all']
         }
 
+        def __init__(self, spec, at=None):
+            self.spec_name = spec
+            self.at = at
+            self.attach_ = self.attach_()
+
+        def attach_(self):
+            custom_specs = self.at or self.__class__.export()
+            if self.spec_name in custom_specs:
+                return self.__class__.mk(self.spec_name, at=custom_specs)
+            else:
+                raise ValueError(f"Function '{self.spec_name}' not found.")
+
+        def __call__(self, *args, **kwargs):
+            return self.attach_(*args, **kwargs)
+
         @classmethod
         def _resolve_alias(cls, where):
             for category, sub_aliases in cls._aliases.items():
