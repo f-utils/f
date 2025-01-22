@@ -1,6 +1,6 @@
 # About
 
-`f` is the Python implementation of `f-utils` [systematics](https://github.com/f-utils/general/blob/main/docs/systematics.md) to ensure constructive type safety.
+`f` is the Python implementation of `f-utils` systematics to ensure constructive type safety by means of parametric polymorphisms.
 
 # Structure
 
@@ -20,6 +20,14 @@ The project has no internal dependencies. The only external dependency is `pytho
 The installation is from this git repository under some of the following branches:
 1. `main`: the current stable version
 2. `dev`: some working in progress
+
+With `git`:
+```bash
+# main branch
+git clone https://github.com/f-utils/f /path/to/your/venv/lib/python3/site-packages/f
+# dev branch
+git clone https://github.com/f-utils/f/tree/dev /path/to/your/venv/lib/python3/site-packages/f
+```
 
 With `pip`:
 ```bash
@@ -47,9 +55,15 @@ py add f-utils/f:dev --from github
 
 # Usage
 
-See:
-- [user](./doc/user.md): with the user manual
-- [ref](./doc/ref.md): with the reference manual
+Just import the class `f`:
+
+```python
+from f import f
+```
+
+For more details, see:
+- [user](./doc/user.md): user manual
+- [ref](./doc/ref.md): reference manual
 
 See also:
 - [philosophy](https://github.com/f-utils/general/blob/main/docs/philosophy.md)): with `f-utils` philosophy
