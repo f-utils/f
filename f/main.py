@@ -44,13 +44,12 @@ class f:
             'all': ['a', 'any', 'every', 'all']
         }
 
-        def __init__(self, spec_name, at=None):
-            self.spec_name = spec_name
-            self.at = at
-
-        def __call__(self, *args, **kwargs):
-            func = self.mk(self.spec_name, self.at)
-            return func(*args, **kwargs)
+        def __new__(cls, spec_name, at=None):
+            specs_dict = at or cls.export()
+            if spec_name not in specs_dict:
+                raise ValueError(f"Function '{spec_name}' not found.")
+            func_obj = cls.mk(spec_name, specs_dict)
+            return func_obj
 
         @classmethod
         def _resolve_alias(cls, where):
