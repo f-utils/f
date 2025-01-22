@@ -347,9 +347,14 @@ class f:
         S = search
 
         @classmethod
-        def check(cls, spec_name, at=None):
-            specs_dict = at if at is not None else cls.export()
-            return spec_name in specs_dict
+        def check(cls, *spec_names, at=None):
+            specs_dict = at if at is not None else f._default_specs
+            for name in spec_names:
+                if not isinstance(name, str):
+                    raise cls.specErr(f"'{name}' is not a string.")
+                if name not in specs_dict:
+                    raise cls.specErr(f"'{name}' is not in the specification database.")
+            return True
         c = check
 
         @classmethod
@@ -571,9 +576,14 @@ class f:
         S = search
 
         @classmethod
-        def check(cls, typename, at=None):
-            types_dict = at if at is not None else cls.export()
-            return typename in types_dict
+        def check(cls, *types, at=None):
+            types_dict = at if at is not None else f._default_types
+            for t in types:
+                if not isinstance(t, type):
+                    raise cls.typeErr(f"'{t}' is not a type.")
+                if t not in types_dict:
+                    raise cls.typeErr(f"'{t}' is not in the type database.")
+            return True
         c = check
     t = type
 
