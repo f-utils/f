@@ -13,17 +13,17 @@ class f:
         def __init__(self, func):
             if not callable(func):
                 raise self.funcErr(f"'{func}' is not a function.")
-            self._function = function
+            self._func = func
 
         def __call__(self, *args, **kwargs):
-            return self._function(*args, **kwargs)
+            return self._func(*args, **kwargs)
 
         def __mul__(self, other):
-            if not isinstance(other, func):
+            if not isinstance(other, f.func):
                 raise self.funcErr(f"'{other}'is not a function: the composition is defined only between functions.")
             def comp_(*args, **kwargs):
-                return self._function(other(*args, **kwargs))
-            return func(comp_)
+                return self._func(other(*args, **kwargs))
+            return f.func(comp_)
     f = func
 
     class spec:
@@ -44,20 +44,13 @@ class f:
             'all': ['a', 'any', 'every', 'all']
         }
 
-        def __init__(self, spec, at=None):
-            self.spec_name = spec
+        def __init__(self, spec_name, at=None):
+            self.spec_name = spec_name
             self.at = at
-            self.attach_ = self.attach_()
-
-        def attach_(self):
-            custom_specs = self.at or self.__class__.export()
-            if self.spec_name in custom_specs:
-                return self.__class__.mk(self.spec_name, at=custom_specs)
-            else:
-                raise ValueError(f"Function '{self.spec_name}' not found.")
 
         def __call__(self, *args, **kwargs):
-            return self.attach_(*args, **kwargs)
+            func = self.mk(self.spec_name, self.at)
+            return func(*args, **kwargs)
 
         @classmethod
         def _resolve_alias(cls, where):
@@ -81,21 +74,21 @@ class f:
             elif len(args) == 0:
                 f._default_specs = {}
             else:
-                raise AttributeError(f"Provided '{len(args)}' arguments. Expecting at most one argument.")
+                raise cls.specErr(f"Provided '{len(args)}' arguments. Expecting at most one argument.")
         db = database
 
         @classmethod
         def init(cls, name, description, std_return_function, at=None):
             if not isinstance(name, str):
-                raise TypeError("The name must be a string.")
+                raise cls.specErr("The name must be a string.")
             if not isinstance(description, str):
-                raise TypeError("The description must be a string.")
+                raise cls.specErr("The description must be a string.")
             if not callable(std_return_function):
-                raise TypeError("The std_return_function must be a function or a lambda.")
+                raise cls.specErr("The std_return_function must be a function or a lambda.")
 
             spec_dict = at if at is not None else f._default_specs
             if name in spec_dict:
-                raise ValueError(f"Specification '{name}' is already registered.")
+                raise cls.specErr(f"Specification '{name}' is already registered.")
 
             spec_dict[name] = {
                 'metadata': {
@@ -118,20 +111,20 @@ class f:
         @classmethod
         def set(cls, *args, **kwargs):
             if len(args) == 1 and isinstance(args[0], str):
-                function_name = args[0]
+                spec_name = args[0]
                 custom_specs = kwargs.get('at', None)
                 specs_dict = custom_specs if custom_specs is not None else cls.export()
-                if function_name in specs_dict:
-                    return specs_dict[function_name]['spec']['exec']
-                raise ValueError(f"Function '{function_name}' not found.")
+                if spec_name in specs_dict:
+                    return specs_dict[spec_name]['spec']['exec']
+                raise cls.specErr(f"Spectrum '{spec_name}' not found.")
         s = set
 
         @classmethod
-        def extend(cls, name, arg_types, func, at=None):
+        def extend(cls, spec_name, arg_types, func, at=None):
             specs_dict = at if at is not None else cls.export()
-            if name not in specs_dict:
-                raise ValueError(f"Function '{name}' is not registered.")
-            spec = specs_dict[name]
+            if spec_name not in specs_dict:
+                raise cls.specErr(f"Spectrum '{spec_name}' not found.")
+            spec = specs_dict[spec_name]
 
             kwarg_types = {}
             if isinstance(arg_types, tuple):
@@ -152,7 +145,7 @@ class f:
                 'func': func,
                 'repr': cls.repr(func)
             }
-            spec['spec']['exec'] = cls.mk(name, at=specs_dict)
+            spec['spec']['exec'] = cls.mk(spec_name, at=specs_dict)
         e = extend
 
         @classmethod
@@ -160,47 +153,47 @@ class f:
             attribute = cls._resolve_alias(attribute)
             specs_dict = at if at is not None else f._default_specs
             if spec_name not in specs_dict:
-                raise ValueError(f"Specification '{spec_name}' is not registered.")
+                raise cls.specErr(f"Specification '{spec_name}' is not registered.")
 
             spec_info = specs_dict[spec_name]
 
             if attribute == 'description':
                 def _update_desc_(new_description):
                     if not isinstance(new_description, str):
-                        raise TypeError("The new description must be a string.")
+                        raise cls.specErr("The new description must be a string.")
                     spec_info['metadata']['description'] = new_description
                 return _update_desc_
 
             if attribute == 'tags':
                 def _update_tag_(old_tag, new_tag):
                     if not isinstance(old_tag, str) or not isinstance(new_tag, str):
-                        raise TypeError("Both old tag and new tag must be strings.")
+                        raise cls.specErr("Both old tag and new tag must be strings.")
                     if not spec_info['metadata']['tags']:
-                        raise ValueError("Cannot update tag as the tags list is empty.")
+                        raise cls.specErr("Cannot update tag as the tags list is empty.")
                     if new_tag in spec_info['metadata']['tags']:
-                        raise ValueError(f"Tag '{new_tag}' already exists in specification '{spec_name}'.")
+                        raise cls.specErr(f"Tag '{new_tag}' already exists in specification '{spec_name}'.")
                     if old_tag in spec_info['metadata']['tags']:
                         spec_info['metadata']['tags'][spec_info['metadata']['tags'].index(old_tag)] = new_tag
                     else:
-                        raise ValueError(f"Tag '{old_tag}' not found in specification '{spec_name}'.")
+                        raise cls.specErr(f"Tag '{old_tag}' not found in specification '{spec_name}'.")
                 return _update_tag_
 
             if attribute == 'comments':
                 def _update_comment_(comment_id, new_comment_value):
                     if not isinstance(comment_id, str) or not isinstance(new_comment_value, str):
-                        raise TypeError("Both comment ID and new comment value must be strings.")
+                        raise cls.specErr("Both comment ID and new comment value must be strings.")
                     if not spec_info['metadata']['comments']:
-                        raise ValueError("Cannot update comment as the comments dictionary is empty.")
+                        raise cls.specErr("Cannot update comment as the comments dictionary is empty.")
                     if comment_id in spec_info['metadata']['comments']:
                         spec_info['metadata']['comments'][comment_id] = new_comment_value
                     else:
-                        raise ValueError(f"Comment ID '{comment_id}' not found in specification '{spec_name}'.")
+                        raise cls.specErr(f"Comment ID '{comment_id}' not found in specification '{spec_name}'.")
                 return _update_comment_
 
             if attribute == 'std':
                 def _update_std_(new_standard_return):
                     if not callable(new_standard_return):
-                        raise TypeError("The new standard return must be a function or a lambda.")
+                        raise cls.specErr("The new standard return must be a function or a lambda.")
                     spec_info['spec']['std'] = new_standard_return
                     spec_info['spec']['std_repr'] = cls.repr(new_standard_return)
                 return _update_std_
@@ -208,7 +201,7 @@ class f:
             if attribute == 'body':
                 def _update_body_(given_type, new_return_for_given_type):
                     if not callable(new_return_for_given_type):
-                        raise TypeError("The new return for given type must be a function or a lambda.")
+                        raise cls.specErr("The new return for given type must be a function or a lambda.")
                     for (arg_types, kwarg_types), func in spec_info['spec']['body'].items():
                         if given_type in arg_types:
                             spec_info['spec']['body'][(arg_types, kwarg_types)] = {
@@ -216,10 +209,10 @@ class f:
                                 'repr': cls.repr(new_return_for_given_type)
                             }
                             return
-                    raise ValueError(f"Type '{given_type}' not found in domain for specification '{spec_name}'.")
+                    raise cls.specErr(f"Type '{given_type}' is not in the domain of spectrum '{spec_name}'.")
                 return _update_body_
 
-            raise ValueError(f"Unknown or unsupported update attribute '{attribute}'.")
+            raise cls.specErr(f"Unsupported attribute '{attribute}'.")
         u = update
 
         @classmethod
@@ -230,7 +223,7 @@ class f:
             if entity in specs_dict:
                 spec = specs_dict[entity]['metadata']
             else:
-                raise ValueError(f"Entity '{entity}' not found in specs.")
+                raise cls.specErr(f"Spectrum '{entity}' not found.")
 
             if attribute == 'tags':
                 def _add_tags_(tag):
@@ -243,7 +236,7 @@ class f:
                     spec['comments'][comment_id] = comment_text
                 return _add_comments_
 
-            raise ValueError(f"Unknown or unsupported add attribute '{attribute}'.")
+            raise cls.specErr(f"Unsupported attribute: '{attribute}'.")
         a = add
 
         @classmethod
@@ -253,7 +246,7 @@ class f:
             if entity in specs_dict:
                 spec = specs_dict[entity]['metadata']
             else:
-                raise ValueError(f"Entity '{entity}' not found in specs.")
+                raise cls.specErr(f"Spectrum '{entity}' not found.")
 
             if attribute == 'tags':
                 def _delete_tags_(tag):
@@ -267,14 +260,14 @@ class f:
                         del spec['comments'][comment_id]
                 return _delete_comments_
 
-            raise ValueError(f"Unknown or unsupported delete attribute '{attribute}'.")
+            raise cls.specErr(f"Unsupported attribute: '{attribute}'.")
         d = delete
 
         @classmethod
         def get(cls, spec_name, entry, at=None):
             specs_dict = at if at is not None else f._default_specs
             if spec_name not in specs_dict:
-                raise ValueError(f"Specification '{spec_name}' not found.")
+                raise cls.specErr(f"Spectrum '{spec_name}' not found.")
 
             entry_path = entry.split('.')
             current = specs_dict[spec_name]
@@ -290,7 +283,7 @@ class f:
                     if isinstance(current, dict) and alias in current:
                         current = current[alias]
                     else:
-                        raise ValueError(f"Entry '{part}' not found in specification '{spec_name}'.")
+                        raise cls.specErr(f"Entry '{part}' not found in specification '{spec_name}'.")
 
             if isinstance(current, dict):
                 return current
@@ -372,16 +365,16 @@ class f:
                             return funcinfo['func'](*args, **kwargs)
                 mismatch_types = [type(arg).__name__ for arg in args if type(arg) not in arg_types]
                 if mismatch_types:
-                    raise TypeError(f"type '{mismatch_types[0]}' is not in the domain of spectra '{spec_name}'")
-                raise TypeError(f"No matching function signature found for spectra '{spec_name}'.")
-            return exec_func
+                    raise cls.specErr(f"type '{mismatch_types[0]}' is not in the domain of spectra '{spec_name}'")
+                raise cls.specErr(f"No matching function signature found for spectra '{spec_name}'.")
+            return f.func(exec_func)
 
 
         @classmethod
         def repr(cls, func):
             try:
                 source = inspect.getsource(func).strip()
-            except (OSError, TypeError):
+            except (cls.specErr):
                 source = repr(func)
 
             if "lambda" in source:
