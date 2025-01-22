@@ -120,21 +120,24 @@ class f:
 
         @classmethod
         def extend(cls, spec_name, arg_types, func, at=None):
+            if isinstance(arg_types, tuple):
+                try:
+                    f.type.check(*arg_types)
+                except f.type.typeErr as e:
+                    raise cls.specErr(str(e))
+            else:
+                try:
+                    f.type.check(arg_types)
+                except f.type.typeErr as e:
+                    raise cls.specErr(str(e))
+
             specs_dict = at if at is not None else cls.export()
             if spec_name not in specs_dict:
                 raise cls.specErr(f"Spectrum '{spec_name}' not found.")
             spec = specs_dict[spec_name]
 
+            pos_types = (arg_types,) if not isinstance(arg_types, tuple) else arg_types
             kwarg_types = {}
-            if isinstance(arg_types, tuple):
-                if len(arg_types) == 2 and isinstance(arg_types[1], dict):
-                    pos_types, kwarg_types = arg_types
-                else:
-                    pos_types = arg_types
-                    kwarg_types = {}
-            else:
-                pos_types = (arg_types,) if not isinstance(arg_types, tuple) else arg_types
-                kwarg_types = {}
 
             kwarg_items = tuple(kwarg_types.items())
             if (pos_types, kwarg_items) not in spec['spec']['domain']:
@@ -282,7 +285,7 @@ class f:
                     if isinstance(current, dict) and alias in current:
                         current = current[alias]
                     else:
-                        raise cls.specErr(f"Entry '{part}' not found in specification '{spec_name}'.")
+                        raise cls.specErr(f"Entry '{part}' not found in spectrum '{spec_name}'.")
 
             if isinstance(current, dict):
                 return current
@@ -353,7 +356,7 @@ class f:
                 if not isinstance(name, str):
                     raise cls.specErr(f"'{name}' is not a string.")
                 if name not in specs_dict:
-                    raise cls.specErr(f"'{name}' is not in the specification database.")
+                    raise cls.specErr(f"'{name}' is not an accessible spectrum.")
             return True
         c = check
 
@@ -582,8 +585,7 @@ class f:
                 if not isinstance(t, type):
                     raise cls.typeErr(f"'{t}' is not a type.")
                 if t not in types_dict:
-                    raise cls.typeErr(f"'{t}' is not in the type database.")
+                    raise cls.typeErr(f"'{t}' is not an accessible type.")
             return True
         c = check
     t = type
-
