@@ -1,4 +1,4 @@
-from .main import f
+from f.main import f
 
 f.t.db()
 
