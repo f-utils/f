@@ -24,6 +24,7 @@ class f:
             def comp_(*args, **kwargs):
                 return self._func(other(*args, **kwargs))
             return f.func(comp_)
+
     f = func
 
     class spec:
@@ -125,7 +126,7 @@ class f:
 
             func_signature = inspect.signature(func)
             if len(arg_types) != len(func_signature.parameters):
-                raise cls.specErr("Input types tuple does not match return function arguments number.")
+                raise cls.specErr(f"Input types tuple '{arg_types}' has '{len(arg_types)}' elements, while return function expects {func_signature.parameters} arguments.")
             try:
                 f.type.check(*arg_types)
             except f.type.typeErr as e:
