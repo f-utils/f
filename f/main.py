@@ -120,16 +120,16 @@ class f:
 
         @classmethod
         def extend(cls, spec_name, arg_types, func, at=None):
-            if isinstance(arg_types, tuple):
-                try:
-                    f.type.check(*arg_types)
-                except f.type.typeErr as e:
-                    raise cls.specErr(str(e))
-            else:
-                try:
-                    f.type.check(arg_types)
-                except f.type.typeErr as e:
-                    raise cls.specErr(str(e))
+            if not isinstance(arg_types, tuple):
+                arg_types = (arg_types,)
+
+            func_signature = inspect.signature(func)
+            if len(arg_types) != len(func_signature.parameters):
+                raise cls.specErr("Input types tuple does not match return function arguments number.")
+            try:
+                f.type.check(*arg_types)
+            except f.type.typeErr as e:
+                raise cls.specErr(str(e))
 
             specs_dict = at if at is not None else cls.export()
             if spec_name not in specs_dict:
