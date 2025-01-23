@@ -3,66 +3,69 @@ from f.mods.meta import meta
 class typeErr(Exception):
     pass
 
-class type:
-    @staticmethod
-    def init(some_type, description, at):
-        return meta.init(some_type, description, at)
+class _type(type):
+    def __new__(mcs, name, bases, dct, **kwargs):
+        cls = super().__new__(mcs, name, bases, dct)
+        cls.at = kwargs.get('at', None)
+        return cls
+
+    def database(cls, *args):
+        return meta.database(cls.at, *args)
+    db = database
+
+    def init(cls, some_type, description):
+        if not isinstance(some_type, type) and some_type is not None:
+            raise meta.err(f"'{some_type}' is not a type nors None.")
+        return meta.init(some_type, description, at=cls.at)
     i = init
 
-    @staticmethod
-    def add(typename, attribute, at):
+    def add(cls, typename, attribute):
         aliases = {
             'comments': ['c', 'comment'],
             'tags': ['t', 'tag']
         }
-        return meta.add(typename, attribute, at, aliases)
+        return meta.add(typename, attribute, cls.at, aliases)
     a = add
 
-    @staticmethod
-    def delete(typename, attribute, at):
+    def delete(cls, typename, attribute):
         aliases = {
             'comments': ['c', 'comment'],
             'tags': ['t', 'tag']
         }
-        return meta.delete(typename, attribute, at, aliases)
+        return meta.delete(typename, attribute, cls.at, aliases)
     d = delete
 
-    @staticmethod
-    def update(typename, attribute, at):
+    def update(cls, typename, attribute):
         aliases = {
             'description': ['d', 'desc'],
             'tags': ['t', 'tag'],
             'comments': ['c', 'comment']
         }
-        return meta.update(typename, attribute, at, aliases)
+        return meta.update(typename, attribute, cls.at, aliases)
     u = update
 
-    @staticmethod
-    def export(at):
-        return meta.export(at)
+    def export(cls):
+        return meta.export(cls.at)
     E = export
 
-    @staticmethod
-    def check(type_names, at):
-        return meta.check(type_names, at)
+    def check(cls, type_names):
+        return meta.check(type_names, cls.at)
     c = check
 
-    @staticmethod
-    def search(term, where, at):
+    def search(cls, term, where):
         aliases = {
             'description': ['d', 'desc'],
             'tags': ['t', 'tag'],
             'comments': ['c', 'comment'],
         }
-        return meta.search(term, where, at, aliases)
+        return meta.search(term, where, cls.at, aliases)
     s = search
 
-    @staticmethod
-    def info(type_name, at):
+    def info(cls, type_name):
         aliases = {
             'description': ['d', 'desc', 'description'],
             'tags': ['t', 'tag', 'tags'],
             'comments': ['c', 'comment', 'comments']
         }
-        return meta.info(type_name, at, aliases)
+        return meta.info(type_name, cls.at, aliases)
     I = info

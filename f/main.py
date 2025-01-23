@@ -1,18 +1,25 @@
-from f.mods.func  import func as func_
-from f.mods.type  import type as type_
-from f.mods.spec  import spec as spec_
-from f.mods.dspec import dspec as dspec_
+from f.mods.func  import func
+from f.mods.type  import _type
+from f.mods.spec  import _spec
+from f.mods.dspec import _dspec
 
 class f:
-    _default_types = None
-    _default_specs = None
-    _default_dspec = None
+    _default_types = {}
+    _default_specs = {}
+    _default_dspecs = {}
 
-    func = func_
+    func = func
     f = func
-    type = type_
+
+    class type(metaclass=_type, at=_default_types):
+        pass
     t = type
-    spec = spec_
+
+    class spec(metaclass=_spec, at=_default_specs):
+        pass
     s = spec
-    dspec = dspec_
+
+    class dspec(metaclass=_dspec, at=_default_dspecs):
+        pass
+
     ds = dspec

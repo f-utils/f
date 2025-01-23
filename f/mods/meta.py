@@ -3,17 +3,20 @@ import re
 import textwrap
 
 class meta:
+    class err(Exception):
+        pass
+
     class any:
         pass
 
     @staticmethod
-    def err(entity, message):
-        try:
-            entity_class = globals()[entity]
-            err_class = getattr(entity_class, f'{entity}Err')
-        except (KeyError, AttributeError):
-            raise Exception(f"Error class for entity '{entity}' not found.")
-        return err_class(message)
+    def database(db, *args):
+        if len(args) == 1:
+            db = args[0]
+        elif len(args) == 0:
+            db = {}
+        else:
+            raise meta.err(f"Provided '{len(args)}' arguments. Expecting at most one argument.")
 
     @staticmethod
     def resolve(attribute, aliases):
@@ -23,7 +26,7 @@ class meta:
         return attribute
 
     @staticmethod
-    def add(entity, attribute, at, type_dict):
+    def add(attribute, at, type_dict):
         attribute = meta.resolve(attribute, type_dict)
         entity_dict = at
 
@@ -46,7 +49,7 @@ class meta:
         raise meta.err(f"Unsupported attribute: '{attribute}'.")
 
     @staticmethod
-    def delete(entity, attribute, at, type_dict):
+    def delete(attribute, at, type_dict):
         attribute = meta.resolve(attribute, type_dict)
         entity_dict = at
         if entity in entity_dict:
@@ -69,7 +72,7 @@ class meta:
         raise meta.err(f"Unsupported attribute: '{attribute}'.")
 
     @staticmethod
-    def update(entity, attribute, at, type_dict):
+    def update(attribute, at, type_dict):
         attribute = meta.resolve(attribute, type_dict)
         entity_dict = at
         if entity not in entity_dict:
@@ -138,7 +141,7 @@ class meta:
     def info(entity_name, at, aliases):
         entity_dict = at
         if entity_name not in entity_dict:
-            raise Meta.err(entity_name.split('.')[0], f"Entity '{entity_name}' not found.")
+            raise Meta.meta.err(entity_name.split('.')[0], f"Entity '{entity_name}' not found.")
 
         entity_info = entity_dict[entity_name]
         info_string = f"Entity '{entity_name}':\n"
@@ -223,12 +226,12 @@ class meta:
         return info.get(key, '')
 
     @staticmethod
-    def init(entity_name, description, std_return_function=None, at=None):
-        if not isinstance(entity_name, str):
-            raise meta.err("The name must be a string.")
+    def init(entity_name, description, std=None, at=None):
+        if not isinstance(entity_name, (str, type)) and entity_name is not None:
+            raise meta.err("Entry must be a string, type or None.")
         if not isinstance(description, str):
             raise meta.err("The description must be a string.")
-        if std_return_function is not None and not callable(std_return_function):
+        if std is not None and not callable(std_return_function):
             raise meta.err("The std_return_function must be a function or a lambda.")
 
         entity_dict = at
@@ -243,7 +246,7 @@ class meta:
             }
         }
 
-        if std_return_function is not None:
+        if std is not None:
             entity_dict[entity_name]['spec'] = {
                 'std': {
                     'func': std_return_function,
@@ -269,7 +272,7 @@ class meta:
                 arg_types = tuple(arg_types) if isinstance(arg_types, (list, tuple)) else (arg_types,)
                 allowed_types = list(entity_dict.keys())
                 if not all(typ in allowed_types for typ in arg_types):
-                    raise meta.err("All types in the tuple must be in the allowed types.")
+                    raise meta.meta.err("All types in the tuple must be in the allowed types.")
             domain_tuple = tuple(list(entity_dict.keys()) if arg_types is any_class else arg_types)
         else:
             if len(arg_types) != len(func_signature.parameters):

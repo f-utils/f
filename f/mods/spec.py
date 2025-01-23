@@ -3,37 +3,41 @@ from f.mods.meta import meta
 class specErr(Exception):
     pass
 
-class spec:
-    @staticmethod
-    def init(spec_name, description, std_return_function, at):
-        return meta.init(spec_name, description, std_return_function, at)
+class _spec(type):
+    def __new__(mcs, name, bases, dct, **kwargs):
+        cls = super().__new__(mcs, name, bases, dct)
+        cls.at = kwargs.get('at', None)
+        return cls
+
+    def database(cls, *args):
+        return meta.database(cls.at, *args)
+    db = database
+
+    def init(cls, spec_name, description, std_return_function):
+        return meta.init(spec_name, description, std_return_function, cls.at)
     i = init
 
-    @staticmethod
-    def extend(spec_name, arg_types, func, at):
-        return meta.extend(spec_name, arg_types, func, at)
+    def extend(cls, spec_name, arg_types, func):
+        return meta.extend(spec_name, arg_types, func, cls.at)
     e = extend
 
-    @staticmethod
-    def add(spec_name, attribute, at):
+    def add(cls, spec_name, attribute):
         aliases = {
             'comments': ['c', 'comment'],
             'tags': ['t', 'tag']
         }
-        return meta.add(spec_name, attribute, at, aliases)
+        return meta.add(spec_name, attribute, cls.at, aliases)
     a = add
 
-    @staticmethod
-    def delete(spec_name, attribute, at):
+    def delete(cls, spec_name, attribute):
         aliases = {
             'comments': ['c', 'comment'],
             'tags': ['t', 'tag']
         }
-        return meta.delete(spec_name, attribute, at, aliases)
+        return meta.delete(spec_name, attribute, cls.at, aliases)
     d = delete
 
-    @staticmethod
-    def update(spec_name, attribute, at):
+    def update(cls, spec_name, attribute):
         aliases = {
             'description': ['d', 'desc', 'description'],
             'tags': ['t', 'tag', 'tags'],
@@ -41,31 +45,27 @@ class spec:
             'std': ['s', 'std', 'standard'],
             'body': ['b', 'body']
         }
-        return meta.update_metadata(spec_name, attribute, at, aliases)
+        return meta.update_metadata(spec_name, attribute, cls.at, aliases)
     u = update
 
-    @staticmethod
-    def export(at):
-        return meta.export(at)
+    def export(cls):
+        return meta.export(cls.at)
     E = export
 
-    @staticmethod
-    def check(spec_names, at):
-        return meta.check(spec_names, at)
+    def check(cls, spec_names):
+        return meta.check(spec_names, cls.at)
     c = check
 
-    @staticmethod
-    def search(term, where, at):
+    def search(cls, term, where):
         aliases = {
             'description': ['d', 'desc'],
             'tags': ['t', 'tag'],
             'comments': ['c', 'comment'],
         }
-        return meta.search(term, where, at, aliases)
+        return meta.search(term, where, cls.at, aliases)
     s = search
 
-    @staticmethod
-    def info(spec_name, at):
+    def info(cls, spec_name):
         aliases = {
             'description': ['d', 'desc', 'description'],
             'tags': ['t', 'tag', 'tags'],
@@ -74,5 +74,5 @@ class spec:
             'body': ['b', 'body'],
             'domain': ['dm', 'domain']
         }
-        return meta.info(spec_name, at, aliases)
+        return meta.info(spec_name, cls.at, aliases)
     I = info
