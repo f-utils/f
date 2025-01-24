@@ -1,24 +1,22 @@
 from f.mods.meta import meta
 
-class specErr(Exception):
-    pass
-
 class _spec(type):
     def __new__(mcs, name, bases, dct, **kwargs):
         cls = super().__new__(mcs, name, bases, dct)
         cls.at = kwargs.get('at', None)
+        cls.att = kwargs.get('att', None)
         return cls
 
     def database(cls, *args):
         return meta.database(cls.at, *args)
     db = database
 
-    def init(cls, spec_name, description, std_return_function):
-        return meta.init(spec_name, description, std_return_function, cls.at)
+    def init(cls, spec_name, description, std):
+        return meta.init(spec_name, description, std, cls.at)
     i = init
 
     def extend(cls, spec_name, arg_types, func):
-        return meta.extend(spec_name, arg_types, func, cls.at)
+        return meta.extend(spec_name, arg_types, func, cls.at, cls.att)
     e = extend
 
     def add(cls, spec_name, attribute):
@@ -45,7 +43,7 @@ class _spec(type):
             'std': ['s', 'std', 'standard'],
             'body': ['b', 'body']
         }
-        return meta.update_metadata(spec_name, attribute, cls.at, aliases)
+        return meta.update(spec_name, attribute, cls.at, aliases)
     u = update
 
     def export(cls):

@@ -6,9 +6,6 @@ class meta:
     class err(Exception):
         pass
 
-    class any:
-        pass
-
     @staticmethod
     def database(db, *args):
         if len(args) == 1:
@@ -141,14 +138,14 @@ class meta:
     def info(entity_name, at, aliases):
         entity_dict = at
         if entity_name not in entity_dict:
-            raise Meta.meta.err(entity_name.split('.')[0], f"Entity '{entity_name}' not found.")
+            raise meta.err(entity_name.split('.')[0], f"Entity '{entity_name}' not found.")
 
         entity_info = entity_dict[entity_name]
         info_string = f"Entity '{entity_name}':\n"
 
         for attribute, alias_list in aliases.items():
-            resolved_attr = Meta._resolve_alias(attribute, aliases)
-            entry = Meta.get_entry_value(entity_info, resolved_attr)
+            resolved_attr = meta.resolve(attribute, aliases)
+            entry = meta.get_entry_value(entity_info, resolved_attr)
 
             if isinstance(entry, dict):
                 if resolved_attr == 'body':
@@ -231,8 +228,8 @@ class meta:
             raise meta.err("Entry must be a string, type or None.")
         if not isinstance(description, str):
             raise meta.err("The description must be a string.")
-        if std is not None and not callable(std_return_function):
-            raise meta.err("The std_return_function must be a function or a lambda.")
+        if std is not None and not callable(std):
+            raise meta.err("The std must be a function or a lambda.")
 
         entity_dict = at
         if entity_name in entity_dict:
@@ -249,39 +246,45 @@ class meta:
         if std is not None:
             entity_dict[entity_name]['spec'] = {
                 'std': {
-                    'func': std_return_function,
-                    'repr': meta.repr(std_return_function)
+                    'func': std,
+                    'repr': meta.repr(std)
                 },
                 'domain': [],
                 'body': {}
             }
 
     @staticmethod
-    def extend(entity_name, arg_types, func, at, any_class=None):
+    def extend(entity_name, arg_types, func, at, att, any_cls=None):
         if not callable(func):
             raise meta.err("The function must be callable.")
         entity_dict = at
+        type_dict = att
         if entity_name not in entity_dict:
             raise meta.err(f"Entity '{entity_name}' is not registered.")
 
         func_signature = inspect.signature(func)
         is_dspec = any(param.kind == inspect.Parameter.VAR_POSITIONAL for param in func_signature.parameters.values())
-
+        allowed_types = list(type_dict.keys())
         if is_dspec:
-            if arg_types is not any_class:
-                arg_types = tuple(arg_types) if isinstance(arg_types, (list, tuple)) else (arg_types,)
-                allowed_types = list(entity_dict.keys())
-                if not all(typ in allowed_types for typ in arg_types):
-                    raise meta.meta.err("All types in the tuple must be in the allowed types.")
-            domain_tuple = tuple(list(entity_dict.keys()) if arg_types is any_class else arg_types)
+            if arg_types is not any_cls:
+                allowed_types = tuple(arg_types)
+                if not all(typ in type_dict for typ in allowed_types):
+                    raise meta.err("All allowed types must be accessible types.")
+                domain_tuple = allowed_types
+            else:
+                domain_tuple = tuple(list(type_dict.keys()))
+            current_domain = entity_dict[entity_name]['spec']['domain']
+            if not domain_tuple == current_domain:
+                current_domain = domain_tuple
         else:
+            if not all(typ in type_dict for typ in tuple(arg_types)):
+                raise meta.err("All arg types must be accessible types.")
             if len(arg_types) != len(func_signature.parameters):
-                raise meta.err(f"Input types tuple '{arg_types}' has '{len(arg_types)}' elements, while return function expects {func_signature.parameters} arguments.")
+                raise meta.err(f"Input types tuple '{arg_types}' has '{len(arg_types)}' elements. Expected: '{func_signature.parameters}' elements.")
             domain_tuple = tuple(arg_types)
-
-        current_domain = entity_dict[entity_name]['spec']['domain']
-        if domain_tuple not in current_domain:
-            current_domain.append(domain_tuple)
+            current_domain = entity_dict[entity_name]['spec']['domain']
+            if domain_tuple not in current_domain:
+                current_domain.append(domain_tuple)
 
         entity_dict[entity_name]['spec']['body'][domain_tuple] = {
             'func': func,

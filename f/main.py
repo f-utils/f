@@ -24,7 +24,6 @@ class f:
     t = type
 
     class spec(metaclass=_spec, at=_default_specs, att=_default_types):
-
         def __new__(cls, spec_name, at=None):
             specs_dict = at if at is not None else f._default_specs
             def exec_func(*args, **kwargs):

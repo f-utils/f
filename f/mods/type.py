@@ -1,13 +1,13 @@
 from f.mods.meta import meta
 
-class typeErr(Exception):
-    pass
-
 class _type(type):
     def __new__(mcs, name, bases, dct, **kwargs):
         cls = super().__new__(mcs, name, bases, dct)
         cls.at = kwargs.get('at', None)
         return cls
+
+    class any:
+        pass
 
     def database(cls, *args):
         return meta.database(cls.at, *args)
@@ -15,7 +15,7 @@ class _type(type):
 
     def init(cls, some_type, description):
         if not isinstance(some_type, type) and some_type is not None:
-            raise meta.err(f"'{some_type}' is not a type nors None.")
+            raise meta.err(f"'{some_type}' is not a type neither None.")
         return meta.init(some_type, description, at=cls.at)
     i = init
 
