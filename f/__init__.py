@@ -1,7 +1,8 @@
 from f.main import f
 
+none = type(None)
 f.t.db()
-
+f.t.i(none,       'the none type')
 f.t.i(type,       'the type of all types')
 f.t.i(int,        'integers numbers')
 f.t.i(float,      'float numbers')
