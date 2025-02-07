@@ -9,6 +9,7 @@ class f:
     _default_specs = {}
     _default_dspecs = {}
     _allow_ops = False
+    _allow_subtypes = False
 
     class err(Exception):
         pass

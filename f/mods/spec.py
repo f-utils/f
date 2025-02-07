@@ -16,7 +16,23 @@ class _spec(type):
     i = init
 
     def extend(cls, spec_name, arg_types, func):
-        return meta.extend(spec_name, arg_types, func, cls.at, cls.att)
+        from f.main import f
+        from itertools import product
+        expanded_arg_types = []
+        for typ in arg_types:
+            if isinstance(typ, list):
+                if not all(isinstance(t, type) for t in typ):
+                    raise TypeError("All elements in the list must be types.")
+                expanded_arg_types.append(tuple(typ))
+            elif typ in ('any', 'Any'):
+                expanded_arg_types.append(f.acceptable_types_())
+            else:
+                if not isinstance(typ, type):
+                    raise TypeError(f"'{typ}' is not a valid type.")
+                expanded_arg_types.append((typ,))
+        type_combinations = product(*expanded_arg_types)
+        for combo in type_combinations:
+            meta.extend(spec_name, combo, func, cls.at, cls.att)
     e = extend
 
     def add(cls, spec_name, attribute):
