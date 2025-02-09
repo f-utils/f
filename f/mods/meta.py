@@ -267,27 +267,26 @@ class meta:
         allowed_types = list(type_dict.keys())
         if is_dspec:
             if arg_types is not any_cls:
-                allowed_types = tuple(arg_types)
-                if not all(typ in type_dict for typ in allowed_types):
-                    raise meta.err("All allowed types must be accessible types.")
-                domain_tuple = allowed_types
+                flat_allowed_types = []
+                for typ_group in arg_types:
+                    if isinstance(typ_group, (tuple, list, set)):
+                        flat_allowed_types.extend(tuple(typ_group))
+                    else:
+                        flat_allowed_types.append(typ_group)
+                domain_tuple = tuple(flat_allowed_types)
             else:
-                domain_tuple = tuple(list(type_dict.keys()))
-            current_domain = entity_dict[entity_name]['spec']['domain']
-            if not domain_tuple == current_domain:
-                current_domain = domain_tuple
+                domain_tuple = tuple(type_dict.keys())
         else:
-            if not all(typ in type_dict for typ in tuple(arg_types)):
-                raise meta.err("All arg types must be accessible types.")
-            if len(arg_types) != len(func_signature.parameters):
-                raise meta.err(f"Input types tuple '{arg_types}' has '{len(arg_types)}' elements. Expected: '{func_signature.parameters}' elements.")
             domain_tuple = tuple(arg_types)
-            current_domain = entity_dict[entity_name]['spec']['domain']
-            if domain_tuple not in current_domain:
-                current_domain.append(domain_tuple)
+
+        if not all(typ in type_dict for typ in domain_tuple):
+            raise meta.err("All arg types must be accessible types.")
+
+        current_domain = entity_dict[entity_name]['spec']['domain']
+        if domain_tuple not in current_domain:
+            current_domain.append(domain_tuple)
 
         entity_dict[entity_name]['spec']['body'][domain_tuple] = {
             'func': func,
             'repr': meta.repr(func)
         }
-

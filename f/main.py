@@ -43,16 +43,25 @@ class f:
     class dspec(metaclass=_dspec, at=_default_dspecs, att=_default_types):
         def __new__(cls, dspec_name, at=None):
             dspecs_dict = at if at is not None else f._default_dspecs
-
             def exec_func(*args, **kwargs):
                 dspec = dspecs_dict[dspec_name]
                 acceptable_types = f.acceptable_types_()
                 for arg_types, funcinfo in dspec['spec']['body'].items():
-                    if all((isinstance(arg, arg_types) or arg is None) and (arg in acceptable_types or arg is None) for arg in args):
+                    expanded_arg_types = [
+                        tuple(acceptable_types) if typ in ('any', 'Any') else (typ,)
+                        for typ in arg_types
+                    ]
+                    if len(args) != len(expanded_arg_types):
+                        continue
+                    type_mismatches = []
+                    for arg, expanded in zip(args, expanded_arg_types):
+                        if not any(isinstance(arg, typ) for typ in expanded):
+                            type_mismatches.append(type(arg).__name__)
+                    if not type_mismatches:
                         return funcinfo['func'](*args, **kwargs)
-                mismatch_args = [arg for arg in args if type(arg) not in arg_types]
-                mismatch_types = [type(arg).__name__ for arg in mismatch_args]
-                raise f.err(f"Types '{mismatch_types}' for arguments '{mismatch_args}' are not allowed for dspec '{dspec_name}'.")
+                if type_mismatches:
+                    raise f.err(f"Types '{type_mismatches}' are not in the domain of dspec '{dspec_name}'.")
+                raise f.err(f"Spectrum '{dspec_name}' not found in database {at}.")
             return exec_func
     ds = dspec
 
