@@ -19,7 +19,11 @@ class f:
     t = type
 
     class op(metaclass=_op, at=_default_ops):
-        pass
+        def __new__(cls, op_name, *args, **kwargs):
+            ops_dict = cls.at
+            if op_name in ops_dict:
+                return ops_dict[op_name]['op']['func']
+            raise f.err(f"Type operation '{op_name}' not found in database '{at}'.")
     o = op
 
     class spec(metaclass=_spec, at=_default_specs, att=_default_types):
@@ -36,7 +40,7 @@ class f:
                 mismatch_types = [type(arg).__name__ for arg in args if type(arg) not in arg_types]
                 if mismatch_types:
                     raise f.err(f"Types '{mismatch_types}' are not in the domain of spectrum '{spec_name}'.")
-                raise f.err(f"Spectrum '{spec_name}' not found in database {at}.")
+                raise f.err(f"Spectrum '{spec_name}' not found in database '{at}'.")
             return exec_func
     s = spec
 
@@ -61,7 +65,7 @@ class f:
                         return funcinfo['func'](*args, **kwargs)
                 if type_mismatches:
                     raise f.err(f"Types '{type_mismatches}' are not in the domain of dspec '{dspec_name}'.")
-                raise f.err(f"Spectrum '{dspec_name}' not found in database {at}.")
+                raise f.err(f"Spectrum '{dspec_name}' not found in database '{at}'.")
             return exec_func
     ds = dspec
 
