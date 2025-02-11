@@ -1,6 +1,17 @@
+```
+  /$$$$$$                                             
+ /$$__  $$                                            
+| $$  \__/
+| $$$$ /
+| $$_/
+| $$
+| $$
+|__/                                                  
+```
+
 # About
 
-`f` is the Python implementation of `f-utils` systematics to ensure constructive type safety by means of parametric polymorphisms.
+`f` is the Python implementation of `f-utils` systematics to build parametric polymorphisms presenting type safety.
 
 # Structure
 
@@ -12,46 +23,21 @@ f/
 
 # Dependencies
 
-The project has no internal dependencies. The only external dependency is `python3`. 
-> Recommended `python >=v3.12`.
+- `python >= 3.9`
 
 # Install
 
-The installation is from this git repository under some of the following branches:
-1. `main`: the current stable version
-2. `dev`: some working in progress
+The installation is from the branches `main` and `dev` of this git repository.
 
-With `git`:
+- With `pip`:
 ```bash
 # main branch
-git clone https://github.com/f-utils/f /path/to/your/venv/lib/python3/site-packages/f
+/path/to/venv/bin/pip install git+https://github.com/f-utils/f
 # dev branch
-git clone https://github.com/f-utils/f/tree/dev /path/to/your/venv/lib/python3/site-packages/f
+/path/to/venv/bin/pip install git+https://github.com/f-utils/f/tree/dev
 ```
 
-With `pip`:
-```bash
-# main branch
-pip install git+https://github.com/f-utils/f
-# dev branch
-pip install git+https://github.com/f-utils/f/tree/dev
-```
-
-With [uv](https://github.com/astral-sh/uv):
-```bash
-# main branch
-uv add git+https://github.com/f-utils/f
-# dev branch
-uv add git+https://github.com/f-utils/f --branch dev
-```
-
-With [py](https://github.com/ximenesyuri/py):
-```bash
-# main branch
-py add f-utils/f --from github
-# dev branch 
-py add f-utils/f:dev --from github
-```
+For other installation options, see [here](https://futils.org/docs/install).
 
 # Usage
 
@@ -62,9 +48,9 @@ from f import f
 ```
 
 For more details, see:
-- [user](./doc/user.md): user manual
-- [ref](./doc/ref.md): reference manual
+- [user](https://futils.org/libs/f/user): user manual
+- [ref](https://futils.org/libs/f/ref): reference manual
 
-See also:
-- [philosophy](https://github.com/f-utils/general/blob/main/docs/philosophy.md)): with `f-utils` philosophy
-- [systematics](https://github.com/f-utils/general/blob/main/docs/systematics.md): with an exposition on `f-utils` systematics
+# License
+
+This software is licensed under MIT. 
