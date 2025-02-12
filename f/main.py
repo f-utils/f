@@ -50,6 +50,7 @@ class f:
             def exec_func(*args, **kwargs):
                 dspec = dspecs_dict[dspec_name]
                 acceptable_types = f.acceptable_types_()
+                type_mismatches = []
                 for arg_types, funcinfo in dspec['spec']['body'].items():
                     expanded_arg_types = [
                         tuple(acceptable_types) if typ in ('any', 'Any') else (typ,)
@@ -57,7 +58,6 @@ class f:
                     ]
                     if len(args) != len(expanded_arg_types):
                         continue
-                    type_mismatches = []
                     for arg, expanded in zip(args, expanded_arg_types):
                         if not any(isinstance(arg, typ) for typ in expanded):
                             type_mismatches.append(type(arg).__name__)
