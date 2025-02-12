@@ -29,6 +29,8 @@ class f:
     class spec(metaclass=_spec, at=_default_specs, att=_default_types):
         def __new__(cls, spec_name, at=None):
             specs_dict = at if at is not None else f._default_specs
+            if spec_name not in specs_dict:
+                raise f.err(f"Spectrum '{spec_name}' not found in database '{at}'.")
             def exec_func(*args, **kwargs):
                 spec = specs_dict[spec_name]
                 for arg_types, funcinfo in spec['spec']['body'].items():
@@ -40,32 +42,29 @@ class f:
                 mismatch_types = [type(arg).__name__ for arg in args if type(arg) not in arg_types]
                 if mismatch_types:
                     raise f.err(f"Types '{mismatch_types}' are not in the domain of spectrum '{spec_name}'.")
-                raise f.err(f"Spectrum '{spec_name}' not found in database '{at}'.")
             return exec_func
     s = spec
 
     class dspec(metaclass=_dspec, at=_default_dspecs, att=_default_types):
         def __new__(cls, dspec_name, at=None):
             dspecs_dict = at if at is not None else f._default_dspecs
+            if dspec_name not in dspecs_dict:
+                raise f.err(f"Dynamic spectrum '{dspec_name}' not found in database '{at}'.")
             def exec_func(*args, **kwargs):
                 dspec = dspecs_dict[dspec_name]
                 acceptable_types = f.acceptable_types_()
                 type_mismatches = []
                 for arg_types, funcinfo in dspec['spec']['body'].items():
-                    expanded_arg_types = [
-                        tuple(acceptable_types) if typ in ('any', 'Any') else (typ,)
-                        for typ in arg_types
-                    ]
-                    if len(args) != len(expanded_arg_types):
+                    if len(args) != len(arg_types):
                         continue
-                    for arg, expanded in zip(args, expanded_arg_types):
-                        if not any(isinstance(arg, typ) for typ in expanded):
-                            type_mismatches.append(type(arg).__name__)
-                    if not type_mismatches:
-                        return funcinfo['func'](*args, **kwargs)
-                if type_mismatches:
-                    raise f.err(f"Types '{type_mismatches}' are not in the domain of dspec '{dspec_name}'.")
-                raise f.err(f"Spectrum '{dspec_name}' not found in database '{at}'.")
+                    type_mismatches = [
+                        type(arg).__name__
+                        for arg, expected_types in zip(args, arg_types)
+                        if expected_types not in ('any', 'Any') and not isinstance(arg, expected_types)
+                    ]
+                if not type_mismatches:
+                    return funcinfo['func'](*args, **kwargs)
+                raise f.err(f"Types '{[type(arg).__name__ for arg in args]}' are allowed for dspec '{dspec_name}'.")
             return exec_func
     ds = dspec
 
