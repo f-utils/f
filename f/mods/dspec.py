@@ -54,7 +54,7 @@ class _dspec(type):
                     list_combo = [tuple(prefix_combo) + (vararg,) for vararg in varargs_combo]
                     for tuple_combo in list_combo:
                         if any(existing == tuple_combo for existing in dspec_body.keys()):
-                            raise cls.err("Argument types match an existing dspec entry.")
+                            raise meta.err("Argument types match an existing dspec entry.")
                         meta.extend(dspec_name, tuple_combo, func, cls.at, cls.att)
                     continue
                 else:
@@ -63,7 +63,7 @@ class _dspec(type):
                 raise TypeError("Mismatch between number of fixed arguments and provided types in the definition.")
 
             if any(existing == tuple_combo for existing in dspec_body.keys()):
-                raise cls.err("Argument types match an existing dspec entry.")
+                raise meta.err("Argument types match an existing dspec entry.")
             meta.extend(dspec_name, tuple_combo, func, cls.at, cls.att)
     e = extend
 
