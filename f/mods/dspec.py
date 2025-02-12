@@ -50,6 +50,7 @@ class _dspec(type):
                 'func': func,
                 'repr': meta.repr(func)
             }
+    e = extend
 
     def add(cls, dspec_name, attribute):
         aliases = {
