@@ -18,14 +18,13 @@ class _dspec(type):
     i = init
 
     def extend(cls, dspec_name, arg_types, func):
-        from f.main import f
         from itertools import product
-
+        from f.main import f
         if not callable(func):
-            raise meta.err("The function must be callable.")
+            raise meta.err(f'{func} must be callable.')
         func_signature = inspect.signature(func)
-
         expanded_arg_types = []
+
         for typ in arg_types:
             if isinstance(typ, list):
                 if not all(isinstance(t, type) or t in ('any', 'Any') for t in typ):
@@ -37,35 +36,20 @@ class _dspec(type):
                 if not isinstance(typ, type):
                     raise TypeError(f"'{typ}' is not a valid type.")
                 expanded_arg_types.append((typ,))
-
         type_combinations = product(*expanded_arg_types)
-
         dspec_body = cls.at[dspec_name]['spec']['body']
-
         for combo in type_combinations:
-            if len(combo) == len(func_signature.parameters):
-                tuple_combo = tuple(
-                    tuple(inner) if isinstance(inner, list) else inner
-                    for inner in combo
-                )
-            elif len(combo) == len(func_signature.parameters) - 1:
-                *prefix_combo, varargs_combo = combo
-                if isinstance(varargs_combo, tuple):
-                    list_combo = [tuple(prefix_combo) + (vararg,) for vararg in varargs_combo]
-                    for tuple_combo in list_combo:
-                        if any(existing == tuple_combo for existing in dspec_body.keys()):
-                            raise meta.err("Argument types match an existing dspec entry.")
-                        meta.extend(dspec_name, tuple_combo, func, cls.at, cls.att)
-                    continue
-                else:
-                    raise TypeError("The last element of arg_types should be a list of acceptable types for *args.")
-            else:
-                raise TypeError("Mismatch between number of fixed arguments and provided types in the definition.")
+            combo_key = tuple(combo)
+            if len(combo_key) != len(func_signature.parameters):
+                continue
 
-            if any(existing == tuple_combo for existing in dspec_body.keys()):
-                raise meta.err("Argument types match an existing dspec entry.")
-            meta.extend(dspec_name, tuple_combo, func, cls.at, cls.att)
-    e = extend
+            if combo_key in dspec_body:
+                raise meta.err(f"Combination '{combo_key}' already exists in dspec '{dspec_name}'.")
+
+            dspec_body[combo_key] = {
+                'func': func,
+                'repr': meta.repr(func)
+            }
 
     def add(cls, dspec_name, attribute):
         aliases = {
