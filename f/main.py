@@ -52,19 +52,17 @@ class f:
                 raise f.err(f"Dynamic spectrum '{dspec_name}' not found in database '{at}'.")
             def exec_func(*args, **kwargs):
                 dspec = dspecs_dict[dspec_name]
-                acceptable_types = f.acceptable_types_()
-                type_mismatches = []
                 for arg_types, funcinfo in dspec['spec']['body'].items():
-                    if len(args) != len(arg_types):
+                    fixed_part_types = [typ for typ in arg_types if not isinstance(typ, list)]
+                    dynamic_part_types = []
+                    if len(arg_types) > len(fixed_part_types):
+                        dynamic_part_types = arg_types[len(fixed_part_types):][0]  # Assume single list for dynamic part
+                    if len(args) < len(fixed_part_types) or not all(isinstance(arg, typ) for arg, typ in zip(args[:len(fixed_part_types)], fixed_part_types)):
                         continue
-                    type_mismatches = [
-                        type(arg).__name__
-                        for arg, expected_types in zip(args, arg_types)
-                        if expected_types not in ('any', 'Any') and not isinstance(arg, expected_types)
-                    ]
-                if not type_mismatches:
-                    return funcinfo['func'](*args, **kwargs)
-                raise f.err(f"Types '{[type(arg).__name__ for arg in args]}' are allowed for dspec '{dspec_name}'.")
+                    remaining_args = args[len(fixed_part_types):]
+                    if not dynamic_part_types or all(any(isinstance(arg, typ) for typ in dynamic_part_types) for arg in remaining_args):
+                        return funcinfo['func'](*args, **kwargs)
+                raise f.err(f"Types '{[type(arg).__name__ for arg in args]}' are not in the domain of dynamic spectrum '{dspec_name}'.")
             return exec_func
     ds = dspec
 

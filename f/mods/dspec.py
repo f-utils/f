@@ -20,33 +20,46 @@ class _dspec(type):
     def extend(cls, dspec_name, arg_types, func):
         from itertools import product
         from f.main import f
+
         if not callable(func):
             raise meta.err(f'{func} must be callable.')
+
         func_signature = inspect.signature(func)
         expanded_arg_types = []
-
-        for typ in arg_types:
+        def expand_types(typ):
             if isinstance(typ, list):
                 if not all(isinstance(t, type) or t in ('any', 'Any') for t in typ):
                     raise TypeError("All elements in the list must be types or 'Any'.")
-                expanded_arg_types.append(tuple(f.acceptable_types_() if t in ('any', 'Any') else t for t in typ))
+                return tuple(f.acceptable_types_() if t in ('any', 'Any') else t for t in typ)
             elif typ in ('any', 'Any'):
-                expanded_arg_types.append(tuple(f.acceptable_types_()))
+                return tuple(f.acceptable_types_())
             else:
                 if not isinstance(typ, type):
                     raise TypeError(f"'{typ}' is not a valid type.")
-                expanded_arg_types.append((typ,))
+                return (typ,)
+        if isinstance(arg_types, tuple):
+            for typ in arg_types:
+                expanded_arg_types.append(expand_types(typ))
+            fixed_part = tuple(typ for typ in arg_types if not isinstance(typ, list))
+        else:
+            expanded_arg_types.append(expand_types(arg_types))
+            fixed_part = ()
+
         type_combinations = product(*expanded_arg_types)
         dspec_body = cls.at[dspec_name]['spec']['body']
         for combo in type_combinations:
             combo_key = tuple(combo)
-            if len(combo_key) != len(func_signature.parameters):
-                continue
+            if isinstance(arg_types, tuple):
+                if not (combo_key[:len(fixed_part)] == tuple(next(iter(expand_types(typ))) for typ in fixed_part) 
+                        and len(combo_key) == len(func_signature.parameters)):
+                    continue
+            dynamic_part_sorted = tuple(sorted(combo_key[len(fixed_part):], key=lambda x: x.__name__))
+            dynamic_part_key = combo_key[:len(fixed_part)] + dynamic_part_sorted
 
-            if combo_key in dspec_body:
-                raise meta.err(f"Combination '{combo_key}' already exists in dspec '{dspec_name}'.")
+            if dynamic_part_key in dspec_body:
+                raise meta.err(f"Combination '{dynamic_part_key}' already exists in dspec '{dspec_name}'.")
 
-            dspec_body[combo_key] = {
+            dspec_body[dynamic_part_key] = {
                 'func': func,
                 'repr': meta.repr(func)
             }
