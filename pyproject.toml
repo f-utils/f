@@ -3,7 +3,7 @@ name = "f"
 version = "0.0.0"
 description = "The Python implementation of f-utils systematics"
 readme = "README.md"
-requires-python = ">=3.6"
+requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
     {name = "Yuri Ximenes", email = "yx.dev@gmx.ie"},
@@ -12,4 +12,6 @@ authors = [
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
-    
+
+[tool.setuptools]
+packages = ["f"]
