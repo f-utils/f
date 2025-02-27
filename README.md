@@ -37,7 +37,7 @@ The installation is from the branches `main` and `dev` of this git repository.
 /path/to/venv/bin/pip install git+https://github.com/f-utils/f/tree/dev
 ```
 
-For other installation options, see [here](https://futils.org/docs/install).
+For other installation options, see [futils.org/install](https://futils.org/docs/libs/install).
 
 # Usage
 
@@ -47,10 +47,8 @@ Just import the class `f`:
 from f import f
 ```
 
-For more details, see:
-- [user](https://futils.org/libs/f/user): user manual
-- [ref](https://futils.org/libs/f/ref): reference manual
+For more details, see [futils.org/libs/f](https://futils.org/libs/f)
 
 # License
 
-This software is licensed under MIT. 
+This software is [licensed](./LICENSE) under BSD. 
