@@ -18,3 +18,6 @@ class TypeErr(Exception):
 
 class HelperErr(Exception):
     pass
+
+class UpdateErr(Exception):
+    pass
