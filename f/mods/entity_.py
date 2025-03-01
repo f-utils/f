@@ -1,9 +1,16 @@
 import inspect
 import re
 import textwrap
-from f.mods.err_ import MetaErr
+from f.mods.err_ import EntityErr
+from f.mods.helper_ import resolve_, repr_
+from f.mods.update_ import Update
 
-class Meta:
+class Entity:
+    default_alias_map = {
+        'description': ['d', 'desc', 'description'],
+        'tags': ['t', 'tag', 'tags'],
+        'comments': ['c', 'comment', 'comments']
+    }
 
     @staticmethod
     def database(db, *args):
@@ -12,24 +19,17 @@ class Meta:
         elif len(args) == 0:
             db = {}
         else:
-            raise MetaErr(f"Provided '{len(args)}' arguments. Expecting at most one argument.")
-
-    @staticmethod
-    def resolve(attribute, aliases):
-        for key, alias_list in aliases.items():
-            if attribute in alias_list:
-                return key
-        return attribute
+            raise EntityErr(f"Provided '{len(args)}' arguments. Expecting at most one argument.")
 
     @staticmethod
     def add(attribute, at, type_dict):
-        attribute = meta.resolve(attribute, type_dict)
+        attribute = resolve_(attribute, type_dict)
         entity_dict = at
 
         if entity in entity_dict:
             spec = entity_dict[entity]['metadata']
         else:
-            raise MetaErr(f"Entity '{entity}' not found.")
+            raise EntityErr(f"Entity '{entity}' not found.")
 
         if attribute == 'tags':
             def _add_tags_(tag):
@@ -42,16 +42,16 @@ class Meta:
                 spec['comments'][comment_id] = comment_text
             return _add_comments_
 
-        raise MetaErr(f"Unsupported attribute: '{attribute}'.")
+        raise EntityErr(f"Unsupported attribute: '{attribute}'.")
 
     @staticmethod
     def delete(attribute, at, type_dict):
-        attribute = meta.resolve(attribute, type_dict)
+        attribute = resolve_(attribute, type_dict)
         entity_dict = at
         if entity in entity_dict:
             spec = entity_dict[entity]['metadata']
         else:
-            raise MetaErr(f"Entity '{entity}' not found.")
+            raise EntityErr(f"Entity '{entity}' not found.")
 
         if attribute == 'tags':
             def _delete_tags_(tag):
@@ -65,86 +65,42 @@ class Meta:
                     del spec['comments'][comment_id]
             return _delete_comments_
 
-        raise MetaErr(f"Unsupported attribute: '{attribute}'.")
+        raise EntityErr(f"Unsupported attribute: '{attribute}'.")
 
     @staticmethod
-    def update(attribute, at, type_dict):
-        attribute = meta.resolve(attribute, type_dict)
-        entity_dict = at
-        if entity not in entity_dict:
-            raise MetaErr(f"Entity '{entity}' is not registered.")
+    def update(entity, attribute, at, custom_updaters=None, additional_alias_map=None):
+        if entity not in at:
+            raise EntityErr(f"Entity '{entity}' is not registered.")
 
-        spec_info = entity_dict[entity]
-        if attribute not in type_dict:
-            raise MetaErr(f"Attribute '{attribute}' is not allowed.")
+        alias_map = {**Entity.default_alias_map, **(additional_alias_map or {})}
+        resolved_attribute = resolve_(attribute, alias_map)
+        spec_info = at[entity]
 
-        if attribute == 'description':
-            def _update_desc_(new_description):
-                if not isinstance(new_description, str):
-                    raise MetaErr("The new description must be a string.")
-                spec_info['metadata']['description'] = new_description
-            return _update_desc_
+        common_updaters = {
+            'description': lambda desc: Update.desc(spec_info, desc),
+            'tags': lambda old_tag, new_tag: Update.tag(spec_info, old_tag, new_tag),
+            'comments': lambda comment_id, new_value: Update.comment(spec_info, comment_id, new_value)
+        }
 
-        if attribute == 'std' and 'spec' in spec_info:
-            def _update_std_(new_standard_return):
-                if not callable(new_standard_return):
-                    raise MetaErr("The new standard return must be a function or a lambda.")
-                spec_info['spec']['std'] = {
-                    'func': new_standard_return,
-                    'repr': meta.repr(new_standard_return)
-                }
-            return _update_std_
+        all_updaters = {**common_updaters, **(custom_updaters or {})}
 
-        if attribute == 'body' and 'spec' in spec_info:
-            def _update_body_(given_type, new_function):
-                if not callable(new_function):
-                    raise MetaErr("The new body function must be a function or a lambda.")
-                spec_info['spec']['body'][given_type] = {
-                    'func': new_function,
-                    'repr': meta.repr(new_function)
-                }
-            return _update_body_
+        if resolved_attribute not in all_updaters:
+            raise EntityErr(f"Attribute '{resolved_attribute}' is not supported for entity '{entity}'.")
 
-        if attribute == 'tags':
-            def _update_tag_(old_tag, new_tag):
-                if not isinstance(old_tag, str) or not isinstance(new_tag, str):
-                    raise MetaErr("Both old tag and new tag must be strings.")
-                if not spec_info['metadata']['tags']:
-                    raise MetaErr("Cannot update tag as the tags list is empty.")
-                if new_tag in spec_info['metadata']['tags']:
-                    raise MetaErr(f"Tag '{new_tag}' already exists in entity '{entity}'.")
-                if old_tag in spec_info['metadata']['tags']:
-                    spec_info['metadata']['tags'][spec_info['metadata']['tags'].index(old_tag)] = new_tag
-                else:
-                    raise MetaErr(f"Tag '{old_tag}' not found in entity '{entity}'.")
-            return _update_tag_
-
-        if attribute == 'comments':
-            def _update_comment_(comment_id, new_comment_value):
-                if not isinstance(comment_id, str) or not isinstance(new_comment_value, str):
-                    raise MetaErr("Both comment ID and new comment value must be strings.")
-                if not spec_info['metadata']['comments']:
-                    raise MetaErr("Cannot update comment as the comments dictionary is empty.")
-                if comment_id in spec_info['metadata']['comments']:
-                    spec_info['metadata']['comments'][comment_id] = new_comment_value
-                else:
-                    raise MetaErr(f"Comment ID '{comment_id}' not found in entity '{entity}'.")
-            return _update_comment_
-
-        raise MetaErr(f"Unsupported attribute '{attribute}' for entity '{entity}'.")
+        return all_updaters[resolved_attribute]
 
     @staticmethod
     def info(entity_name, at, aliases):
         entity_dict = at
         if entity_name not in entity_dict:
-            raise MetaErr(entity_name.split('.')[0], f"Entity '{entity_name}' not found.")
+            raise EntityErr(entity_name.split('.')[0], f"Entity '{entity_name}' not found.")
 
         entity_info = entity_dict[entity_name]
         info_string = f"Entity '{entity_name}':\n"
 
         for attribute, alias_list in aliases.items():
-            resolved_attr = meta.resolve(attribute, aliases)
-            entry = meta.get_entry_value(entity_info, resolved_attr)
+            resolved_attr = Entity.resolve(attribute, aliases)
+            entry = Entity.get_entry_value(entity_info, resolved_attr)
 
             if isinstance(entry, dict):
                 if resolved_attr == 'body':
@@ -174,18 +130,6 @@ class Meta:
         return info_string
 
     @staticmethod
-    def repr(func):
-        try:
-            source = inspect.getsource(func).strip()
-        except:
-            source = repr(func)
-
-        if "lambda" in source:
-            lambda_idx = source.index("lambda")
-            return source[lambda_idx:].strip().rstrip(')')
-        return source
-
-    @staticmethod
     def export(at):
         return at
 
@@ -193,19 +137,19 @@ class Meta:
     def check(names, at):
         for name in names:
             if not isinstance(name, str):
-                raise MetaErr(f"'{name}' is not a string.")
+                raise EntityErr(f"'{name}' is not a string.")
             if name not in at:
-                raise MetaErr(f"'{name}' is not an accessible entity.")
+                raise EntityErr(f"'{name}' is not an accessible entity.")
         return True
 
     @staticmethod
     def search(term, where, at, aliases):
-        where_key = meta.resolve(where, aliases)
+        where_key = Entity.resolve(where, aliases)
         results = []
         pattern = re.compile(term, re.IGNORECASE)
 
         for entity_name, info in at.items():
-            entry_value = meta.get_entry_value(info, where_key)
+            entry_value = Entity.get_entry_value(info, where_key)
             if isinstance(entry_value, list):
                 entry_value = ' '.join(entry_value)
             elif isinstance(entry_value, dict):
@@ -224,15 +168,15 @@ class Meta:
     @staticmethod
     def init(entity_name, description, std=None, at=None):
         if not isinstance(entity_name, (str, type)) and entity_name is not None:
-            raise MetaErr("Entry must be a string, type or None.")
+            raise EntityErr("Entry must be a string, type or None.")
         if not isinstance(description, str):
-            raise MetaErr("The description must be a string.")
+            raise EntityErr("The description must be a string.")
         if std is not None and not callable(std):
-            raise MetaErr("The std must be a function or a lambda.")
+            raise EntityErr("The std must be a function or a lambda.")
 
         entity_dict = at
         if entity_name in entity_dict:
-            raise MetaErr(f"Entity '{entity_name}' is already registered.")
+            raise EntityErr(f"Entity '{entity_name}' is already registered.")
 
         entity_dict[entity_name] = {
             'metadata': {
@@ -246,7 +190,7 @@ class Meta:
             entity_dict[entity_name]['spec'] = {
                 'std': {
                     'func': std,
-                    'repr': meta.repr(std)
+                    'repr': repr_(std)
                 },
                 'domain': [],
                 'body': {}
@@ -255,11 +199,11 @@ class Meta:
     @staticmethod
     def extend(entity_name, arg_types, func, at, att, any_cls=None):
         if not callable(func):
-            raise MetaErr("The function must be callable.")
+            raise EntityErr("The function must be callable.")
         entity_dict = at
         type_dict = att
         if entity_name not in entity_dict:
-            raise MetaErr(f"Entity '{entity_name}' is not registered.")
+            raise EntityErr(f"Entity '{entity_name}' is not registered.")
 
         func_signature = inspect.signature(func)
         is_dspec = any(param.kind == inspect.Parameter.VAR_POSITIONAL for param in func_signature.parameters.values())
@@ -279,7 +223,7 @@ class Meta:
             domain_tuple = tuple(arg_types)
 
         if not all(typ in type_dict for typ in domain_tuple):
-            raise MetaErr("All arg types must be accessible types.")
+            raise EntityErr("All arg types must be accessible types.")
 
         current_domain = entity_dict[entity_name]['spec']['domain']
         if domain_tuple not in current_domain:
@@ -287,5 +231,5 @@ class Meta:
 
         entity_dict[entity_name]['spec']['body'][domain_tuple] = {
             'func': func,
-            'repr': meta.repr(func)
+            'repr': repr_(func)
         }
