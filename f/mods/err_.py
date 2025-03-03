@@ -1,7 +1,10 @@
 class ConfErr(Exception):
     pass
 
-class MetaErr(Exception):
+class DbErr(Exception):
+    pass
+
+class EntityErr(Exception):
     pass
 
 class OpErr(Exception):
@@ -20,4 +23,10 @@ class HelperErr(Exception):
     pass
 
 class UpdateErr(Exception):
+    pass
+
+class SearchErr(Exception):
+    pass
+
+class InitErr(Exception):
     pass
