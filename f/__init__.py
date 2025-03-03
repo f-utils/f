@@ -1,7 +1,6 @@
 from f.main import f
 
 none = type(None)
-f.t.db()
 f.t.i(none,       'the none type')
 f.t.i(type,       'the type of all types')
 f.t.i(int,        'integers numbers')
@@ -17,6 +16,3 @@ f.t.i(dict,       'key and value sets')
 f.t.i(bytes,      'bytes representation')
 f.t.i(bytearray,  'bytes sequences')
 f.t.i(memoryview, 'memory access')
-
-f.s.db()
-f.ds.db()
